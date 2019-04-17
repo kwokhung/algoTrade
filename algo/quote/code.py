@@ -18,7 +18,7 @@ class Code(object):
 
         self.api_svr_ip = '127.0.0.1'
         self.api_svr_port = 11111
-        self.unlock_password = '240262'
+        self.unlock_password = 'xxxxxx'
         self.trade_env = ft.TrdEnv.REAL
 
         self.quote_ctx, self.trade_ctx = self.context_setting()
