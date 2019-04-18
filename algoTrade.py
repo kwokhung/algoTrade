@@ -1,8 +1,10 @@
 import algo
-import futu as ft
+import sys
+
+print('Arguments ({}): {}'.format(len(sys.argv), str(sys.argv)))
 
 if __name__ == "__main__":
-    algo_code = algo.Code('HK.03333', '2019-04-17', '2019-04-17', 0)
+    algo_code = algo.Code(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], int(sys.argv[6]))
     algo_code.print()
 
     # ret_code, df = algo_code.get_kline(algo_code.start, algo_code.end)

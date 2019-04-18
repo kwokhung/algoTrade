@@ -9,17 +9,16 @@ import talib
 
 class Code(object):
 
-    def __init__(self, code, start, end, qty_to_buy):
+    def __init__(self, trade_env, unlock_password, code, start, end, qty_to_buy):
+        self.trade_env = trade_env
+        self.unlock_password = unlock_password
         self.code = code
         self.start = start
         self.end = end
         self.qty_to_buy = qty_to_buy
-        self.position = 0
 
         self.api_svr_ip = '127.0.0.1'
         self.api_svr_port = 11111
-        self.unlock_password = 'xxxxxx'
-        self.trade_env = ft.TrdEnv.REAL
 
         self.quote_ctx, self.trade_ctx = self.context_setting()
 
@@ -41,9 +40,9 @@ class Code(object):
         if 'HK.' in self.code:
             trade_ctx = ft.OpenHKTradeContext(host=self.api_svr_ip, port=self.api_svr_port)
         elif 'SH.' in self.code:
-            trade_ctx = ft.OpenCNTradeContext(host=self.api_svr_ip, port=self.api_svr_port)
+            trade_ctx = ft.OpenHKCCTradeContext(host=self.api_svr_ip, port=self.api_svr_port)
         elif 'SZ.' in self.code:
-            trade_ctx = ft.OpenCNTradeContext(host=self.api_svr_ip, port=self.api_svr_port)
+            trade_ctx = ft.OpenHKCCTradeContext(host=self.api_svr_ip, port=self.api_svr_port)
         elif 'US.' in self.code:
             if self.trade_env == ft.TrdEnv.SIMULATE:
                 raise Exception('US Stock Trading does not support simulation')
@@ -167,6 +166,9 @@ class Code(object):
         plt.show()
 
     def trade_macd(self, macd, signal, hist):
+        if not self.check_tradable():
+            return
+
         if macd[-1] < signal[-1]:
             if macd[-2] > signal[-2]:
                 print('Turning point from high to low')
@@ -190,6 +192,7 @@ class Code(object):
 
         if position <= 0:
             print('Buy {}'.format(self.qty_to_buy))
+            self.clear_order()
             self.buy(self.qty_to_buy, last_price)
 
     def suggest_sell(self):
@@ -203,6 +206,7 @@ class Code(object):
 
         if position > 0:
             print('Sell {}'.format(position))
+            self.clear_order()
             self.sell(position, last_price)
 
     def get_position(self):
@@ -268,3 +272,39 @@ class Code(object):
             trd_env=self.trade_env)
 
         return ret_code, order
+
+    def clear_order(self):
+        ret_code, order_list = self.trade_ctx.order_list_query(trd_env=self.trade_env)
+
+        for i, row in order_list.iterrows():
+            print('{}. order_id = {}'.format(i, row['order_id']))
+            print('{}. order_status = {}'.format(i, row['order_status']))
+            if row['order_status'] == ft.OrderStatus.SUBMITTED or row['order_status'] == ft.OrderStatus.FILLED_PART:
+                ret_code, modify_order = self.trade_ctx.modify_order(
+                    modify_order_op=ft.ModifyOrderOp.CANCEL,
+                    order_id=row['order_id'],
+                    qty=row['qty'],
+                    price=row['price'],
+                    trd_env=self.trade_env)
+
+        return ret_code
+
+    def check_tradable(self):
+        ret_code, global_state = self.quote_ctx.get_global_state()
+
+        if ret_code != ft.RET_OK:
+            return False
+
+        if 'HK.' in self.code:
+            if global_state['market_hk'] == ft.MarketState.MORNING or global_state['market_hk'] == ft.MarketState.AFTERNOON:
+                return True
+        elif 'SH.' in self.code:
+            if global_state['market_sh'] == ft.MarketState.MORNING or global_state['market_sh'] == ft.MarketState.AFTERNOON:
+                return True
+        elif 'SZ.' in self.code:
+            if global_state['market_sz'] == ft.MarketState.MORNING or global_state['market_sz'] == ft.MarketState.AFTERNOON:
+                return True
+        elif 'US.' in self.code:
+            return False
+
+        return False
