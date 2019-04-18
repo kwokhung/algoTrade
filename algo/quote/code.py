@@ -1,5 +1,4 @@
 import futu as ft
-import math
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -279,7 +278,8 @@ class Code(object):
         for i, row in order_list.iterrows():
             print('{}. order_id = {}'.format(i, row['order_id']))
             print('{}. order_status = {}'.format(i, row['order_status']))
-            if row['order_status'] == ft.OrderStatus.SUBMITTED or row['order_status'] == ft.OrderStatus.FILLED_PART:
+            print('{}. code = {}'.format(i, row['code']))
+            if row['order_status'] == self.code and (row['order_status'] == ft.OrderStatus.SUBMITTED or row['order_status'] == ft.OrderStatus.FILLED_PART):
                 ret_code, modify_order = self.trade_ctx.modify_order(
                     modify_order_op=ft.ModifyOrderOp.CANCEL,
                     order_id=row['order_id'],
@@ -295,16 +295,20 @@ class Code(object):
         if ret_code != ft.RET_OK:
             return False
 
-        if 'HK.' in self.code:
-            if global_state['market_hk'] == ft.MarketState.MORNING or global_state['market_hk'] == ft.MarketState.AFTERNOON:
-                return True
-        elif 'SH.' in self.code:
-            if global_state['market_sh'] == ft.MarketState.MORNING or global_state['market_sh'] == ft.MarketState.AFTERNOON:
-                return True
-        elif 'SZ.' in self.code:
-            if global_state['market_sz'] == ft.MarketState.MORNING or global_state['market_sz'] == ft.MarketState.AFTERNOON:
-                return True
-        elif 'US.' in self.code:
+        try:
+            if 'HK.' in self.code:
+                if global_state['market_hk'] == ft.MarketState.MORNING or global_state['market_hk'] == ft.MarketState.AFTERNOON:
+                    return True
+            elif 'SH.' in self.code:
+                if global_state['market_sh'] == ft.MarketState.MORNING or global_state['market_sh'] == ft.MarketState.AFTERNOON:
+                    return True
+            elif 'SZ.' in self.code:
+                if global_state['market_sz'] == ft.MarketState.MORNING or global_state['market_sz'] == ft.MarketState.AFTERNOON:
+                    return True
+            elif 'US.' in self.code:
+                if global_state['market_us'] == ft.MarketState.MORNING or global_state['market_us'] == ft.MarketState.AFTERNOON:
+                    return True
+        except KeyError:
             return False
 
         return False
