@@ -1,5 +1,7 @@
 import futu as ft
+import time
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import mpl_finance as mpf
@@ -8,13 +10,22 @@ import talib
 
 class Code(object):
 
-    def __init__(self, trade_env, unlock_password, code, start, end, qty_to_buy):
+    def __init__(self, trade_env, unlock_password):
+        self.codes = pd.read_csv('C:/temp/code.csv')
+        print(self.codes)
+
         self.trade_env = trade_env
         self.unlock_password = unlock_password
-        self.code = code
-        self.start = start
-        self.end = end
-        self.qty_to_buy = qty_to_buy
+
+        self.code_index = -1
+        self.code_length = len(self.codes['code'])
+
+        self.code = ''
+        self.start = ''
+        self.end = ''
+        self.qty_to_buy = 0
+        self.enable = False
+        self.update_code()
 
         self.api_svr_ip = '127.0.0.1'
         self.api_svr_port = 11111
@@ -32,6 +43,33 @@ class Code(object):
 
     def print(self):
         print('Code {}'.format(self.code))
+
+    def update_code(self):
+        self.code_index = self.code_index + 1
+
+        if self.code_index == self.code_length:
+            self.code_index = 0
+
+        self.code = self.codes['code'][self.code_index]
+
+        self.start = self.codes['start'][self.code_index]
+
+        if self.start == 'today':
+            self.start = time.strftime("%Y-%m-%d")
+
+        self.end = self.codes['end'][self.code_index]
+
+        if self.end == 'today':
+            self.end = time.strftime("%Y-%m-%d")
+
+        self.qty_to_buy = self.codes['qty_to_buy'][self.code_index]
+
+        if self.codes['enable'][self.code_index] == 'yes':
+            self.enable = True
+        else:
+            self.enable = False
+
+        self.print()
 
     def context_setting(self):
         quote_ctx = ft.OpenQuoteContext(host=self.api_svr_ip, port=self.api_svr_port)
@@ -55,11 +93,11 @@ class Code(object):
 
         return quote_ctx, trade_ctx
 
-    def get_kline(self, start, end):
-        ret_code, df, page_req_key = self.quote_ctx.request_history_kline(
-            self.code,
-            start=start,
-            end=end,
+    def get_kline(self):
+        ret_code, klines, page_req_key = self.quote_ctx.request_history_kline(
+            code=self.code,
+            start=self.start,
+            end=self.end,
             ktype=ft.KLType.K_1M,
             autype=ft.AuType.QFQ,
             fields=[
@@ -75,25 +113,25 @@ class Code(object):
             max_count=60 * 24)
 
         if ret_code == ft.RET_OK:
-            print('{}: {}'.format(df['time_key'].iloc[-1], df['close'].iloc[-1]))
+            print('{}: {}'.format(klines['time_key'].iloc[-1], klines['close'].iloc[-1]))
 
-            df.to_csv('C:/temp/{}.csv'.format(self.code))
+            klines.to_csv('C:/temp/{}.csv'.format(self.code))
 
-            return ft.RET_OK, df
+            return ft.RET_OK, klines
         else:
             print('return_code: {}'.format(ret_code))
 
             return ft.RET_ERROR
 
-    def chart(self, df):
-        sma_10 = talib.SMA(np.array(df['close']), 10)
-        sma_20 = talib.SMA(np.array(df['close']), 20)
-        sma_60 = talib.SMA(np.array(df['close']), 60)
+    def chart(self, klines):
+        sma_10 = talib.SMA(np.array(klines['close']), 10)
+        sma_20 = talib.SMA(np.array(klines['close']), 20)
+        sma_60 = talib.SMA(np.array(klines['close']), 60)
 
         self.ax.clear()
 
-        self.ax.set_xticks(range(0, len(df['time_key']), 30))
-        self.ax.set_xticklabels(df['time_key'][::30], rotation=90)
+        self.ax.set_xticks(range(0, len(klines['time_key']), 30))
+        self.ax.set_xticklabels(klines['time_key'][::30], rotation=90)
 
         self.ax.plot(sma_10, label='10 SMA')
         self.ax.plot(sma_20, label='20 SMA')
@@ -104,21 +142,21 @@ class Code(object):
 
         mpf.candlestick2_ochl(
             self.ax,
-            df['open'],
-            df['close'],
-            df['high'],
-            df['low'],
+            klines['open'],
+            klines['close'],
+            klines['high'],
+            klines['low'],
             width=1,
             colorup='r',
             colordown='green',
             alpha=0.6)
 
-        macd, signal, hist = talib.MACD(np.array(df['close']), 12, 26, 9)
+        macd, signal, hist = talib.MACD(np.array(klines['close']), 12, 26, 9)
 
         self.ax1.clear()
 
-        self.ax1.set_xticks(range(0, len(df['time_key']), 30))
-        self.ax1.set_xticklabels(df['time_key'][::30], rotation=90)
+        self.ax1.set_xticks(range(0, len(klines['time_key']), 30))
+        self.ax1.set_xticklabels(klines['time_key'][::30], rotation=90)
 
         self.ax1.plot(macd, label='DIF')
         self.ax1.plot(signal, label='DEA')
@@ -128,14 +166,14 @@ class Code(object):
 
         self.ax2.clear()
 
-        self.ax2.set_xticks(range(0, len(df['time_key']), 30))
-        self.ax2.set_xticklabels(df['time_key'][::30], rotation=30, horizontalalignment='right')
+        self.ax2.set_xticks(range(0, len(klines['time_key']), 30))
+        self.ax2.set_xticklabels(klines['time_key'][::30], rotation=30, horizontalalignment='right')
 
         mpf.volume_overlay(
             self.ax2,
-            df['open'],
-            df['close'],
-            df['volume'],
+            klines['open'],
+            klines['close'],
+            klines['volume'],
             colorup='r',
             colordown='g',
             width=1,
@@ -147,24 +185,47 @@ class Code(object):
 
         self.trade_macd(macd, signal, hist)
 
-    def plot_chart(self, df):
-        self.chart(df)
+    def plot_chart(self, klines):
+        self.chart(klines)
 
         plt.show()
 
     def animate(self, i):
         print('Animate: {}'.format(i))
 
-        ret_code, df = self.get_kline(self.start, self.end)
+        ret_code, klines = self.get_kline()
 
         if ret_code == ft.RET_OK:
-            self.chart(df)
+            if self.enable:
+                self.chart(klines)
+
+            self.update_code()
 
     def animate_chart(self):
         ani = animation.FuncAnimation(self.fig, self.animate, interval=3000)
         plt.show()
 
+    def trade(self):
+        i = 0
+
+        while True:
+            print('Trade: {}'.format(i))
+
+            ret_code, klines = self.get_kline()
+
+            if ret_code == ft.RET_OK:
+                if self.enable:
+                    macd, signal, hist = talib.MACD(np.array(klines['close']), 12, 26, 9)
+                    self.trade_macd(macd, signal, hist)
+
+                self.update_code()
+
+            time.sleep(3)
+            i = i + 1
+
     def trade_macd(self, macd, signal, hist):
+        return False
+
         if not self.check_tradable():
             return
 
@@ -189,10 +250,11 @@ class Code(object):
         last_price = self.get_last_price()
         print('Last price: {}'.format(last_price))
 
-        if position <= 0:
-            print('Buy {}'.format(self.qty_to_buy))
+        if position < self.qty_to_buy:
+            buy_qty = self.qty_to_buy - position
+            print('Buy {}'.format(buy_qty))
             self.clear_order()
-            self.buy(self.qty_to_buy, last_price)
+            self.buy(buy_qty, last_price)
 
     def suggest_sell(self):
         print('Suggest to sell')
@@ -290,23 +352,23 @@ class Code(object):
         return ret_code
 
     def check_tradable(self):
-        ret_code, global_state = self.quote_ctx.get_global_state()
+        ret_code, global_states = self.quote_ctx.get_global_state()
 
         if ret_code != ft.RET_OK:
             return False
 
         try:
             if 'HK.' in self.code:
-                if global_state['market_hk'] == ft.MarketState.MORNING or global_state['market_hk'] == ft.MarketState.AFTERNOON:
+                if global_states['market_hk'] == ft.MarketState.MORNING or global_states['market_hk'] == ft.MarketState.AFTERNOON:
                     return True
             elif 'SH.' in self.code:
-                if global_state['market_sh'] == ft.MarketState.MORNING or global_state['market_sh'] == ft.MarketState.AFTERNOON:
+                if global_states['market_sh'] == ft.MarketState.MORNING or global_states['market_sh'] == ft.MarketState.AFTERNOON:
                     return True
             elif 'SZ.' in self.code:
-                if global_state['market_sz'] == ft.MarketState.MORNING or global_state['market_sz'] == ft.MarketState.AFTERNOON:
+                if global_states['market_sz'] == ft.MarketState.MORNING or global_states['market_sz'] == ft.MarketState.AFTERNOON:
                     return True
             elif 'US.' in self.code:
-                if global_state['market_us'] == ft.MarketState.MORNING or global_state['market_us'] == ft.MarketState.AFTERNOON:
+                if global_states['market_us'] == ft.MarketState.MORNING or global_states['market_us'] == ft.MarketState.AFTERNOON:
                     return True
         except KeyError:
             return False
