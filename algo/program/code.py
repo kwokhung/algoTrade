@@ -37,6 +37,7 @@ class Code(object):
 
     def __del__(self):
         self.quote_ctx.close()
+        self.trade_ctx.close()
 
     def print(self):
         print('Code {}'.format(self.code))
@@ -100,4 +101,38 @@ class Code(object):
                 self.update_code()
 
             time.sleep(3)
+            i = i + 1
+
+    def test(self):
+        i = 0
+
+        while i < self.code_length:
+            print('Test: {}'.format(i))
+
+            ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, self.start, self.end)
+
+            if ret_code == ft.RET_OK:
+                if self.enable:
+                    change_rate = np.array(klines['change_rate']) / 100
+                    action = np.array(klines['close']) - np.array(klines['close'])
+                    position = np.array(klines['close']) - np.array(klines['close'])
+                    p_l = np.array(klines['close']) - np.array(klines['close'])
+                    cumulated_p_l = np.array(klines['close']) - np.array(klines['close'])
+                    macd, signal, hist = talib.MACD(np.array(klines['close']), 12, 26, 9)
+
+                    for i in range(33, len(klines['close']) - 1):
+                        if macd[i] < signal[i] and position[i-1] > 0:
+                            action[i] = -1
+                        elif macd[i] > signal[i] and position[i-1] <= 0:
+                            action[i] = 1
+                        else:
+                            action[i] = 0
+
+                        position[i] = position[i-1] + action[i]
+                        p_l[i] = position[i-1] * change_rate[i]
+                        cumulated_p_l[i] = cumulated_p_l[i-1] + p_l[i]
+                        print('cumulated p&l({}): {}%'.format(i, cumulated_p_l[i] * 100))
+
+                self.update_code()
+
             i = i + 1

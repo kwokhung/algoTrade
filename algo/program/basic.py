@@ -9,6 +9,9 @@ class Program(object):
 
     @staticmethod
     def chart(fig, code, klines):
+        for ax in fig.axes:
+            fig.delaxes(ax)
+
         ax = fig.add_subplot(3, 1, 1)
         ax1 = fig.add_subplot(3, 1, 2, sharex=ax)
         ax2 = fig.add_subplot(3, 1, 3, sharex=ax)
@@ -21,6 +24,7 @@ class Program(object):
 
         ax.set_xticks(range(0, len(klines['time_key']), 30))
         ax.set_xticklabels(klines['time_key'][::30], rotation=90)
+        ax.xaxis.set_tick_params(labelsize=0)
 
         ax.plot(sma_10, label='10 SMA')
         ax.plot(sma_20, label='20 SMA')
@@ -46,6 +50,7 @@ class Program(object):
 
         ax1.set_xticks(range(0, len(klines['time_key']), 30))
         ax1.set_xticklabels(klines['time_key'][::30], rotation=90)
+        ax1.xaxis.set_tick_params(labelsize=0)
 
         ax1.plot(macd, label='DIF')
         ax1.plot(signal, label='DEA')
@@ -67,6 +72,8 @@ class Program(object):
             colordown='g',
             width=1,
             alpha=0.8)
+
+        ax2.grid(True)
 
         plt.subplots_adjust(hspace=0)
         plt.ylabel('Stock Price ({})'.format(code))
