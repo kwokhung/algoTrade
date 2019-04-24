@@ -44,7 +44,7 @@ class Program(object):
             colordown='green',
             alpha=0.6)
 
-        macd, signal, hist = talib.MACD(np.array(klines['close']), 12, 26, 9)
+        macd, signal, hist = talib.MACD(np.array(klines['close']), 5, 35, 5)
 
         ax1.clear()
 
