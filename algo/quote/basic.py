@@ -1,4 +1,5 @@
 import futu as ft
+import time
 
 
 class Quote(object):
@@ -26,7 +27,7 @@ class Quote(object):
         if ret_code == ft.RET_OK:
             print('{}: {}'.format(klines['time_key'].iloc[-1], klines['close'].iloc[-1]))
 
-            klines.to_csv('C:/temp/{}.csv'.format(code))
+            klines.to_csv('C:/temp/{}_klines.csv'.format(code))
 
             return ft.RET_OK, klines
         else:

@@ -35,6 +35,16 @@ class Code(object):
         self.fig = plt.figure(figsize=(8, 6))
         self.fig.subplots_adjust(bottom=0.28)
 
+        # month
+        # self.macd_parameters = [3, 10, 8]
+        # week
+        # self.macd_parameters = [11, 30, 9]
+        # day
+        # self.macd_parameters = [12, 26, 9]
+        # hour / minute
+        # self.macd_parameters = [5, 35, 5]
+        self.macd_parameters = [12, 26, 9]
+
     def __del__(self):
         self.quote_ctx.close()
         self.trade_ctx.close()
@@ -82,12 +92,12 @@ class Code(object):
             ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, self.start, self.end)
 
             if ret_code == ft.RET_OK:
-                sma_10, sma_20, sma_60, macd, signal, hist = algo.Program.chart(self.fig, self.code, klines)
+                sma_10, sma_20, sma_60, macd, signal, hist = algo.Program.chart(self.fig, self.code, klines, self.macd_parameters[0], self.macd_parameters[1], self.macd_parameters[2])
                 # algo.Program.trade_macd(self.quote_ctx, self.trade_ctx, self.trade_env, self.code, self.qty_to_buy, macd, signal, hist)
 
         self.update_code()
 
-    def animate_chart(self):
+    def chart(self):
         ani = animation.FuncAnimation(self.fig, self.animate, interval=3000)
         plt.show()
 
@@ -101,7 +111,7 @@ class Code(object):
                 ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, self.start, self.end)
 
                 if ret_code == ft.RET_OK:
-                    macd, signal, hist = talib.MACD(np.array(klines['close']), 5, 35, 5)
+                    macd, signal, hist = talib.MACD(np.array(klines['close']), self.macd_parameters[0], self.macd_parameters[1], self.macd_parameters[2])
                     algo.Program.trade_macd(self.quote_ctx, self.trade_ctx, self.trade_env, self.code, self.qty_to_buy, macd, signal, hist)
 
                 time.sleep(3)
@@ -126,9 +136,9 @@ class Code(object):
                     p_l = np.array(klines['close']) - np.array(klines['close'])
                     cumulated_p_l = np.array(klines['close']) - np.array(klines['close'])
 
-                    macd, signal, hist = talib.MACD(np.array(klines['close']), 5, 35, 5)
+                    macd, signal, hist = talib.MACD(np.array(klines['close']), self.macd_parameters[0], self.macd_parameters[1], self.macd_parameters[2])
 
-                    for i in range(38, len(klines['close'])):
+                    for i in range(self.macd_parameters[1] + self.macd_parameters[2] - 2, len(klines['close'])):
                         if macd[i] < signal[i] and position[i-1] > 0:
                             action[i] = -1
                         elif macd[i] > signal[i] and position[i-1] <= 0:
@@ -148,8 +158,8 @@ class Code(object):
                         # print('cumulated p&l({}): {}%'.format(i, cumulated_p_l[i] * 100))
 
                     test_result = pd.DataFrame({'code': np.array(klines['code']), 'time_key': np.array(klines['time_key']), 'close': np.array(klines['close']), 'change_rate': change_rate, 'macd': macd, 'signal': signal, 'hist': hist, 'action': action, 'position': position, 'p&l': p_l, 'cumulated p&l': cumulated_p_l})
-                    # print(test_result)
-                    test_result.to_csv('C:/temp/{}_result.csv'.format(self.code))
+                    print(test_result.tail(5))
+                    test_result.to_csv('C:/temp/{}_result_{}.csv'.format(self.code, time.strftime("%Y%m%d%H%M%S")))
 
                 time.sleep(3)
 

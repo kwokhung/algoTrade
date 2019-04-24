@@ -8,7 +8,7 @@ import talib
 class Program(object):
 
     @staticmethod
-    def chart(fig, code, klines):
+    def chart(fig, code, klines, macd_parameter1, macd_parameter2, macd_parameter3):
         for ax in fig.axes:
             fig.delaxes(ax)
 
@@ -44,7 +44,7 @@ class Program(object):
             colordown='green',
             alpha=0.6)
 
-        macd, signal, hist = talib.MACD(np.array(klines['close']), 5, 35, 5)
+        macd, signal, hist = talib.MACD(np.array(klines['close']), macd_parameter1, macd_parameter2, macd_parameter3)
 
         ax1.clear()
 

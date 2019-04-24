@@ -1,5 +1,4 @@
 import futu as ft
-import algo
 
 
 class Helper(object):
