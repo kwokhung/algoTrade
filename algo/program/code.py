@@ -11,15 +11,16 @@ from watchdog.events import PatternMatchingEventHandler
 
 
 class Code(object):
-    api_svr_ip = '127.0.0.1'
-    api_svr_port = 11111
+    config = None
+    api_svr_ip = ''
+    api_svr_port = 0
+    unlock_password = ''
     quote_ctx = None
     hk_trade_ctx = None
     hkcc_trade_ctx = None
     us_trade_ctx = None
     trade_ctx = None
     trade_env = ''
-    unlock_password = ''
     codes = None
     code_length = 0
     code_index = -1
@@ -31,7 +32,8 @@ class Code(object):
     my_observer = None
 
     def __init__(self):
-        self.quote_ctx, self.hk_trade_ctx, self.hkcc_trade_ctx, self.us_trade_ctx = algo.Helper.context_setting(self.api_svr_ip, self.api_svr_port, self.trade_env, self.unlock_password)
+        self.get_config()
+        self.quote_ctx, self.hk_trade_ctx, self.hkcc_trade_ctx, self.us_trade_ctx = algo.Helper.context_setting(self.api_svr_ip, self.api_svr_port, self.unlock_password)
 
         self.get_codes()
         self.roll_code()
@@ -81,6 +83,14 @@ class Code(object):
     def print(self):
         print('Code {}'.format(self.code))
 
+    def get_config(self):
+        self.config = pd.read_csv('C:/temp/config.csv')
+        self.api_svr_ip = self.config['api_svr_ip'][0]
+        self.api_svr_port = int(self.config['api_svr_port'][0])
+        self.unlock_password = self.config['unlock_password'][0]
+
+        print(self.config)
+
     def on_modified(self, event):
         if 'code.csv' in event.src_path:
             self.get_codes()
@@ -99,7 +109,6 @@ class Code(object):
             self.code_index = 0
 
         self.trade_env = self.codes['trade_env'][self.code_index]
-        self.unlock_password = self.codes['unlock_password'][self.code_index]
 
         self.code = self.codes['code'][self.code_index]
 

@@ -4,7 +4,7 @@ import futu as ft
 class Helper(object):
 
     @staticmethod
-    def context_setting(api_svr_ip, api_svr_port, trade_env, unlock_password):
+    def context_setting(api_svr_ip, api_svr_port, unlock_password):
         quote_ctx = ft.OpenQuoteContext(host=api_svr_ip, port=api_svr_port)
 
         hk_trade_ctx = ft.OpenHKTradeContext(host=api_svr_ip, port=api_svr_port)
