@@ -29,6 +29,8 @@ class Code(object):
     end = ''
     qty_to_buy = 0
     enable = False
+    short_sell_enable = False
+    qty_to_sell = 0
     my_observer = None
 
     def __init__(self):
@@ -40,6 +42,8 @@ class Code(object):
 
         self.fig = plt.figure(figsize=(8, 6))
         self.fig.subplots_adjust(bottom=0.28)
+
+        self.sma_parameters = [10, 20, 60]
 
         # month
         # self.macd_parameters = [3, 10, 8]
@@ -129,9 +133,19 @@ class Code(object):
         else:
             self.enable = False
 
+        if self.codes['short_sell_enable'][self.code_index] == 'yes':
+            self.short_sell_enable = True
+        else:
+            self.short_sell_enable = False
+
+        self.qty_to_sell = self.codes['qty_to_sell'][self.code_index]
+
         self.print()
 
-        self.trade_ctx = algo.Helper.trade_context_setting(self.hk_trade_ctx, self.hkcc_trade_ctx, self.us_trade_ctx, self.code)
+        self.trade_ctx = algo.Helper.trade_context_setting(self.hk_trade_ctx,
+                                                           self.hkcc_trade_ctx,
+                                                           self.us_trade_ctx,
+                                                           self.code)
 
     def animate(self, i):
         print('Animate: {}'.format(i))
@@ -140,11 +154,20 @@ class Code(object):
             self.roll_code()
 
         if self.enable:
-            ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, self.start, self.end)
+            try:
+                ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, self.start, self.end)
 
-            if ret_code == ft.RET_OK:
-                sma_10, sma_20, sma_60, macd, signal, hist = algo.Program.chart(self.fig, self.code, klines, self.macd_parameters[0], self.macd_parameters[1], self.macd_parameters[2])
-                # algo.Program.trade_macd(self.quote_ctx, self.trade_ctx, self.trade_env, self.code, self.qty_to_buy, macd, signal, hist)
+                if ret_code == ft.RET_OK:
+                    sma_1, sma_2, sma_3, macd, signal, hist = algo.Program.chart(self.fig, self.code, klines,
+                                                                                 self.sma_parameters[0],
+                                                                                 self.sma_parameters[1],
+                                                                                 self.sma_parameters[2],
+                                                                                 self.macd_parameters[0],
+                                                                                 self.macd_parameters[1],
+                                                                                 self.macd_parameters[2])
+                    # algo.Program.trade_macd(self.quote_ctx, self.trade_ctx, self.trade_env, self.code, self.qty_to_buy, macd, signal, hist)
+            except TypeError:
+                print('get_kline failed')
 
         self.roll_code()
 
@@ -159,13 +182,20 @@ class Code(object):
             print('Trade: {}'.format(code_index))
 
             if self.enable:
-                ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, self.start, self.end)
+                try:
+                    ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, self.start, self.end)
 
-                if ret_code == ft.RET_OK:
-                    macd, signal, hist = talib.MACD(np.array(klines['close']), self.macd_parameters[0], self.macd_parameters[1], self.macd_parameters[2])
-                    algo.Program.trade_macd(self.quote_ctx, self.trade_ctx, self.trade_env, self.code, self.qty_to_buy, macd, signal, hist)
+                    if ret_code == ft.RET_OK:
+                        macd, signal, hist = talib.MACD(np.array(klines['close']),
+                                                        self.macd_parameters[0],
+                                                        self.macd_parameters[1],
+                                                        self.macd_parameters[2])
+                        algo.Program.trade_macd(self.quote_ctx, self.trade_ctx, self.trade_env, self.code,
+                                                self.qty_to_buy, macd, signal, hist)
 
-                time.sleep(3)
+                    time.sleep(3)
+                except TypeError:
+                    print('get_kline failed')
 
             self.roll_code()
 
@@ -179,42 +209,77 @@ class Code(object):
             print('Test: {}'.format(code_index))
 
             if self.enable:
-                ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, self.start, self.end)
+                try:
+                    ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, self.start, self.end)
 
-                if ret_code == ft.RET_OK:
-                    change_rate = np.array(klines['change_rate']) / 100
-                    action = np.array(klines['close']) - np.array(klines['close'])
-                    position = np.array(klines['close']) - np.array(klines['close'])
-                    p_l = np.array(klines['close']) - np.array(klines['close'])
-                    cumulated_p_l = np.array(klines['close']) - np.array(klines['close'])
+                    if ret_code == ft.RET_OK:
+                        # algo.Program.test_macd(self.code, klines, self.macd_parameters[0], self.macd_parameters[1], self.macd_parameters[2])
+                        # algo.Program.test_sma(self.code, klines, self.sma_parameters[0], self.sma_parameters[1], self.sma_parameters[2])
+                        algo.Program.test_macd_sma(self.code,
+                                                   self.short_sell_enable,
+                                                   klines,
+                                                   self.macd_parameters[0],
+                                                   self.macd_parameters[1],
+                                                   self.macd_parameters[2],
+                                                   self.sma_parameters[0],
+                                                   self.sma_parameters[1],
+                                                   self.sma_parameters[2])
 
-                    macd, signal, hist = talib.MACD(np.array(klines['close']), self.macd_parameters[0], self.macd_parameters[1], self.macd_parameters[2])
-
-                    for i in range(self.macd_parameters[1] + self.macd_parameters[2] - 2, len(klines['close'])):
-                        if macd[i] < signal[i] and position[i-1] > 0:
-                            action[i] = -1
-                        elif macd[i] > signal[i] and position[i-1] <= 0:
-                            action[i] = 1
-                        else:
-                            action[i] = 0
-
-                        position[i] = position[i-1] + action[i]
-                        p_l[i] = position[i-1] * change_rate[i]
-                        cumulated_p_l[i] = cumulated_p_l[i-1] + p_l[i]
-
-                        # print('close({}): {}'.format(i, np.array(klines['close'])[i]))
-                        # print('change_rate({}): {}%'.format(i, change_rate[i] * 100))
-                        # print('action({}): {}'.format(i, action[i]))
-                        # print('position({}): {}'.format(i, position[i]))
-                        # print('p&l({}): {}%'.format(i, p_l[i] * 100))
-                        # print('cumulated p&l({}): {}%'.format(i, cumulated_p_l[i] * 100))
-
-                    test_result = pd.DataFrame({'code': np.array(klines['code']), 'time_key': np.array(klines['time_key']), 'close': np.array(klines['close']), 'change_rate': change_rate, 'macd': macd, 'signal': signal, 'hist': hist, 'action': action, 'position': position, 'p&l': p_l, 'cumulated p&l': cumulated_p_l})
-                    print(test_result.tail(5))
-                    test_result.to_csv('C:/temp/{}_result_{}.csv'.format(self.code, time.strftime("%Y%m%d%H%M%S")))
-
-                time.sleep(3)
+                    time.sleep(3)
+                except TypeError:
+                    print('get_kline failed')
 
             self.roll_code()
 
             code_index = code_index + 1
+
+    def test_year(self):
+        trade_days = self.quote_ctx.get_trading_days(ft.Market.HK, start='2019-04-01', end='2019-04-26')
+
+        time_column = pd.DataFrame(columns=['time_key'])
+
+        for trade_day in trade_days[1]:
+            time_column.loc[len(time_column)] = [trade_day['time']]
+
+        year_result = pd.concat([time_column], axis=1)
+
+        code_index = 0
+
+        while code_index < self.code_length:
+            print('Test: {}'.format(code_index))
+
+            if self.enable:
+                code_column = pd.DataFrame(columns=[self.code])
+
+                for trade_day in trade_days[1]:
+                    try:
+                        ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, trade_day['time'], trade_day['time'])
+
+                        if ret_code == ft.RET_OK:
+                            test_result = algo.Program.test_macd_sma(self.code,
+                                                                     self.short_sell_enable,
+                                                                     klines,
+                                                                     self.macd_parameters[0],
+                                                                     self.macd_parameters[1],
+                                                                     self.macd_parameters[2],
+                                                                     self.sma_parameters[0],
+                                                                     self.sma_parameters[1],
+                                                                     self.sma_parameters[2])
+
+                            cumulated_p_l = test_result['cumulated p&l'].iloc[-1]
+                            code_column.loc[len(code_column)] = [cumulated_p_l]
+
+                        time.sleep(3)
+                    except TypeError:
+                        print('get_kline failed')
+
+                year_result = pd.concat([year_result, code_column], axis=1)
+                print(year_result)
+
+            self.roll_code()
+
+            code_index = code_index + 1
+
+        year_result.to_csv('C:/temp/result/year_result_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")))
+
+
