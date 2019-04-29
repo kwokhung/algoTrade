@@ -84,109 +84,20 @@ class Program(object):
         return sma_1, sma_2, sma_3, macd, signal, hist
 
     @staticmethod
-    def trade_macd(quote_ctx, trade_ctx, trade_env, code, qty_to_buy, macd, signal, hist):
+    def trade_macd_sma(quote_ctx, trade_ctx, trade_env, code, qty_to_buy, short_sell_enable, qty_to_sell, macd, signal, sma_1, sma_2):
         if not algo.Trade.check_tradable(quote_ctx, code):
             return
 
-        if macd[-1] < signal[-1]:
-            if macd[-2] > signal[-2]:
-                print('Turning point from high to low')
-
-            algo.Program.suggest_sell(quote_ctx, trade_ctx, trade_env, code)
-
-        if macd[-1] > signal[-1]:
-            if macd[-2] < signal[-2]:
-                print('Turning point from low to high')
-
+        if algo.Program.sell_signal_from_macd_sma(-1, macd, signal, sma_1, sma_2, short_sell_enable):
+            algo.Program.suggest_sell(quote_ctx, trade_ctx, trade_env, code, short_sell_enable, qty_to_sell)
+        elif algo.Program.buy_signal_from_macd_sma(i, macd, signal, sma_1, sma_2):
             algo.Program.suggest_buy(quote_ctx, trade_ctx, trade_env, code, qty_to_buy)
 
     @staticmethod
-    def test_macd(code, klines, macd_parameter1, macd_parameter2, macd_parameter3):
-        change_rate = np.array(klines['change_rate']) / 100
-        action = np.array(klines['close']) - np.array(klines['close'])
-        position = np.array(klines['close']) - np.array(klines['close'])
-        p_l = np.array(klines['close']) - np.array(klines['close'])
-        cumulated_p_l = np.array(klines['close']) - np.array(klines['close'])
-
-        macd, signal, hist = talib.MACD(np.array(klines['close']), macd_parameter1, macd_parameter2, macd_parameter3)
-
-        for i in range(macd_parameter2 + macd_parameter3 - 2, len(klines['close'])):
-            if macd[i] < signal[i] and position[i - 1] > 0:
-                action[i] = -1
-            elif macd[i] > signal[i] and macd[i-2] > signal[i-2] and macd[i-4] > signal[i-4] and\
-                    macd[i] > macd[i-2] and macd[i-2] > macd[i-4] and\
-                    signal[i] > signal[i-2] and signal[i-1] > signal[i-4] and\
-                    position[i - 1] <= 0:
-                action[i] = 1
-            else:
-                action[i] = 0
-
-            position[i] = position[i - 1] + action[i]
-            p_l[i] = position[i - 1] * change_rate[i]
-            cumulated_p_l[i] = cumulated_p_l[i - 1] + p_l[i]
-
-            # print('close({}): {}'.format(i, np.array(klines['close'])[i]))
-            # print('change_rate({}): {}%'.format(i, change_rate[i] * 100))
-            # print('action({}): {}'.format(i, action[i]))
-            # print('position({}): {}'.format(i, position[i]))
-            # print('p&l({}): {}%'.format(i, p_l[i] * 100))
-            # print('cumulated p&l({}): {}%'.format(i, cumulated_p_l[i] * 100))
-
-        test_result = pd.DataFrame({'code': np.array(klines['code']), 'time_key': np.array(klines['time_key']),
-                                    'close': np.array(klines['close']), 'change_rate': change_rate, 'macd': macd,
-                                    'signal': signal, 'hist': hist, 'action': action, 'position': position, 'p&l': p_l,
-                                    'cumulated p&l': cumulated_p_l})
-        print(test_result.tail(5))
-        test_result.to_csv('C:/temp/result/{}_result_{}.csv'.format(code, time.strftime("%Y%m%d%H%M%S")))
-
-        return test_result
-
-    @staticmethod
-    def test_sma(code, klines, sma_parameter1, sma_parameter2, sma_parameter3):
-        change_rate = np.array(klines['change_rate']) / 100
-        action = np.array(klines['close']) - np.array(klines['close'])
-        position = np.array(klines['close']) - np.array(klines['close'])
-        p_l = np.array(klines['close']) - np.array(klines['close'])
-        cumulated_p_l = np.array(klines['close']) - np.array(klines['close'])
-
-        sma_1 = talib.SMA(np.array(klines['close']), sma_parameter1)
-        sma_2 = talib.SMA(np.array(klines['close']), sma_parameter2)
-        sma_3 = talib.SMA(np.array(klines['close']), sma_parameter3)
-
-        for i in range(sma_parameter2, len(klines['close'])):
-            if sma_1[i] < sma_2[i] and position[i - 1] > 0:
-                action[i] = -1
-            elif sma_1[i] > sma_2[i] and sma_1[i-2] > sma_2[i-2] and sma_1[i-4] > sma_2[i-4] and\
-                    sma_1[i] > sma_1[i-2] and sma_1[i-2] > sma_1[i-4] and\
-                    sma_2[i] > sma_2[i-2] and sma_2[i-1] > sma_2[i-4] and\
-                    position[i - 1] <= 0:
-                action[i] = 1
-            else:
-                action[i] = 0
-
-            position[i] = position[i - 1] + action[i]
-            p_l[i] = position[i - 1] * change_rate[i]
-            cumulated_p_l[i] = cumulated_p_l[i - 1] + p_l[i]
-
-            # print('close({}): {}'.format(i, np.array(klines['close'])[i]))
-            # print('change_rate({}): {}%'.format(i, change_rate[i] * 100))
-            # print('action({}): {}'.format(i, action[i]))
-            # print('position({}): {}'.format(i, position[i]))
-            # print('p&l({}): {}%'.format(i, p_l[i] * 100))
-            # print('cumulated p&l({}): {}%'.format(i, cumulated_p_l[i] * 100))
-
-        test_result = pd.DataFrame({'code': np.array(klines['code']), 'time_key': np.array(klines['time_key']),
-                                    'close': np.array(klines['close']), 'change_rate': change_rate, 'sma_1': sma_1,
-                                    'sma_2': sma_2, 'sma_3': sma_3, 'action': action, 'position': position, 'p&l': p_l,
-                                    'cumulated p&l': cumulated_p_l})
-        print(test_result.tail(5))
-        test_result.to_csv('C:/temp/result/{}_result_{}.csv'.format(code, time.strftime("%Y%m%d%H%M%S")))
-
-        return test_result
-
-    @staticmethod
     def test_macd_sma(code, short_sell_enable, klines, macd_parameter1, macd_parameter2, macd_parameter3, sma_parameter1, sma_parameter2, sma_parameter3):
-        change_rate = np.array(klines['change_rate']) / 100
+        # change_rate = np.array(klines['change_rate']) / 100
+        close = np.array(klines['close'])
+        change_rate = np.array(klines['close']) - np.array(klines['close'])
         action = np.array(klines['close']) - np.array(klines['close'])
         position = np.array(klines['close']) - np.array(klines['close'])
         p_l = np.array(klines['close']) - np.array(klines['close'])
@@ -204,17 +115,23 @@ class Program(object):
                     action[i] = -1
                 elif position[i - 1] == 0 and short_sell_enable:
                     action[i] = -1
-            elif algo.Program.buy_signal_from_macd_sma(i, macd, signal, sma_1, sma_2) and position[i - 1] <= 0:
-                action[i] = 1
+                else:
+                    action[i] = 0
+            elif algo.Program.buy_signal_from_macd_sma(i, macd, signal, sma_1, sma_2):
+                if position[i - 1] <= 0:
+                    action[i] = 1
+                else:
+                    action[i] = 0
             else:
                 action[i] = 0
 
+            change_rate[i] = (close[i] / close[i - 1]) - 1
             position[i] = position[i - 1] + action[i]
             p_l[i] = position[i - 1] * change_rate[i]
             cumulated_p_l[i] = cumulated_p_l[i - 1] + p_l[i]
 
-            # print('close({}): {}'.format(i, np.array(klines['close'])[i]))
-            # print('change_rate({}): {}%'.format(i, change_rate[i] * 100))
+            # print('close({}): {}'.format(i, close[i]))
+            # print('change_rate({}): {}%'.format(i, change_rate[i]))
             # print('action({}): {}'.format(i, action[i]))
             # print('position({}): {}'.format(i, position[i]))
             # print('p&l({}): {}%'.format(i, p_l[i] * 100))
@@ -232,6 +149,9 @@ class Program(object):
 
     @staticmethod
     def buy_signal_from_macd_sma(i, macd, signal, sma_1, sma_2):
+        if macd[i] > signal[i]:
+            return True
+
         if not (macd[i] > signal[i] and macd[i - 2] > signal[i - 2] and macd[i - 4] > signal[i - 4]):
             return False
 
@@ -254,7 +174,7 @@ class Program(object):
 
     @staticmethod
     def sell_signal_from_macd_sma(i, macd, signal, sma_1, sma_2, short_sell_enable):
-        if macd[i] < signal[i] and not short_sell_enable:
+        if macd[i] < signal[i]:
             return True
 
         if not (macd[i] < signal[i] and macd[i - 2] < signal[i - 2] and macd[i - 4] < signal[i - 4]):
@@ -308,7 +228,7 @@ class Program(object):
             algo.Trade.clear_order(trade_ctx, trade_env, code)
             algo.Trade.sell(trade_ctx, trade_env, code, position, last_price)
         elif short_sell_enable:
-            sell_qty = sell_qty + position
+            sell_qty = qty_to_sell + position
             print('Short Sell {}'.format(sell_qty))
             algo.Trade.clear_order(trade_ctx, trade_env, code)
             algo.Trade.sell(trade_ctx, trade_env, code, sell_qty, last_price)

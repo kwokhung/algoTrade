@@ -165,7 +165,6 @@ class Code(object):
                                                                                  self.macd_parameters[0],
                                                                                  self.macd_parameters[1],
                                                                                  self.macd_parameters[2])
-                    # algo.Program.trade_macd(self.quote_ctx, self.trade_ctx, self.trade_env, self.code, self.qty_to_buy, macd, signal, hist)
             except TypeError:
                 print('get_kline failed')
 
@@ -186,12 +185,16 @@ class Code(object):
                     ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, self.start, self.end)
 
                     if ret_code == ft.RET_OK:
+                        sma_1 = talib.SMA(np.array(klines['close']), self.sma_parameters[0])
+                        sma_2 = talib.SMA(np.array(klines['close']), self.sma_parameters[1])
+                        sma_3 = talib.SMA(np.array(klines['close']), self.sma_parameters[2])
+
                         macd, signal, hist = talib.MACD(np.array(klines['close']),
                                                         self.macd_parameters[0],
                                                         self.macd_parameters[1],
                                                         self.macd_parameters[2])
-                        algo.Program.trade_macd(self.quote_ctx, self.trade_ctx, self.trade_env, self.code,
-                                                self.qty_to_buy, macd, signal, hist)
+                        algo.Program.trade_macd_sma(self.quote_ctx, self.trade_ctx, self.trade_env, self.code,
+                                                    self.qty_to_buy, self.short_sell_enable, self.qty_to_sell, macd, signal, sma_1, sma_2)
 
                     time.sleep(3)
                 except TypeError:
@@ -213,8 +216,6 @@ class Code(object):
                     ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, self.start, self.end)
 
                     if ret_code == ft.RET_OK:
-                        # algo.Program.test_macd(self.code, klines, self.macd_parameters[0], self.macd_parameters[1], self.macd_parameters[2])
-                        # algo.Program.test_sma(self.code, klines, self.sma_parameters[0], self.sma_parameters[1], self.sma_parameters[2])
                         algo.Program.test_macd_sma(self.code,
                                                    self.short_sell_enable,
                                                    klines,
