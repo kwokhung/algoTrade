@@ -79,8 +79,11 @@ class Trade(object):
         return ret_code
 
     @staticmethod
-    def check_tradable(quote_ctx, code):
-        return False
+    def check_tradable(quote_ctx, trade_ctx, trade_env, code):
+        if trade_env == ft.TrdEnv.SIMULATE:
+            return True
+        else:
+            return True
 
         ret_code, global_states = quote_ctx.get_global_state()
 

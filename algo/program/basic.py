@@ -85,7 +85,7 @@ class Program(object):
 
     @staticmethod
     def trade_macd_sma(quote_ctx, trade_ctx, trade_env, code, qty_to_buy, short_sell_enable, qty_to_sell, macd, signal, sma_1, sma_2):
-        if not algo.Trade.check_tradable(quote_ctx, code):
+        if not algo.Trade.check_tradable(quote_ctx, trade_ctx, trade_env, code):
             return
 
         if algo.Program.sell_signal_from_macd_sma(-1, macd, signal, sma_1, sma_2, short_sell_enable):

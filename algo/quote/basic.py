@@ -71,6 +71,9 @@ class Quote(object):
 
     @staticmethod
     def get_last_price(quote_ctx, code):
+        if 'US.' in code:
+            return Quote.get_last_price_worldtradingdata(code)
+
         ret_code, market_snapshot = quote_ctx.get_market_snapshot([code])
 
         if ret_code != ft.RET_OK:
@@ -79,3 +82,26 @@ class Quote(object):
         last_price = market_snapshot['last_price'][0]
 
         return last_price
+
+    @staticmethod
+    def get_last_price_worldtradingdata(code):
+        request_parameters = {'symbol': code.replace('US.', ''), 'api_token': 'p2MH2x7gGdbRFUM24CxGESjDhJf541J2T1fOjQzDhQVWXXG61pmQLzKPhS1A'}
+        response = requests.get('https://www.worldtradingdata.com/api/v1/stock', request_parameters)
+
+        if response.status_code != 200:
+            print('status_code: {}'.format(response.status_code))
+
+            return ft.RET_ERROR
+
+        try:
+            response_data = response.json()
+            last_price = float(response_data['data'][0]['price'])
+        except KeyError:
+            last_price = 0
+        except IndexError:
+            last_price = 0
+        except ValueError:
+            last_price = 0
+
+        return last_price
+
