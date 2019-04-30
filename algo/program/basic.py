@@ -143,13 +143,13 @@ class Program(object):
                                     'sma_2': sma_2, 'sma_3': sma_3, 'action': action, 'position': position, 'p&l': p_l,
                                     'cumulated p&l': cumulated_p_l})
         print(test_result.tail(5))
-        test_result.to_csv('C:/temp/result/{}_result_{}.csv'.format(code, time.strftime("%Y%m%d%H%M%S")))
+        test_result.to_csv('C:/temp/result/{}_result_{}.csv'.format(code, time.strftime("%Y%m%d%H%M%S")), float_format='%f')
 
         return test_result
 
     @staticmethod
     def buy_signal_from_macd_sma(i, macd, signal, sma_1, sma_2):
-        if macd[i] > signal[i]:
+        if macd[i] > signal[i] and False:
             return True
 
         if not (macd[i] > signal[i]):
@@ -177,7 +177,7 @@ class Program(object):
 
     @staticmethod
     def sell_signal_from_macd_sma(i, macd, signal, sma_1, sma_2, short_sell_enable):
-        if macd[i] < signal[i]:
+        if macd[i] < signal[i] and False:
             return True
 
         if not (macd[i] < signal[i]):
@@ -242,6 +242,28 @@ class Program(object):
                 print('Short Sell {}'.format(sell_qty))
                 algo.Trade.clear_order(trade_ctx, trade_env, code)
                 algo.Trade.sell(trade_ctx, trade_env, code, sell_qty, last_price)
+        except Exception as e:
+            print(e)
+
+    @staticmethod
+    def force_to_liquidate(quote_ctx, trade_ctx, trade_env, code):
+        try:
+            print('Force to liquidate')
+
+            position = algo.Trade.get_position(trade_ctx, trade_env, code)
+            print('Position: {}'.format(position))
+
+            last_price = algo.Quote.get_last_price(quote_ctx, code)
+            print('Last price: {}'.format(last_price))
+
+            if position > 0:
+                print('Force Sell {}'.format(position))
+                algo.Trade.clear_order(trade_ctx, trade_env, code)
+                algo.Trade.sell(trade_ctx, trade_env, code, position, last_price)
+            elif position < 0:
+                print('Force Buy back {}'.format(position))
+                algo.Trade.clear_order(trade_ctx, trade_env, code)
+                algo.Trade.buy(trade_ctx, trade_env, code, position, last_price)
         except Exception as e:
             print(e)
 

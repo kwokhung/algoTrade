@@ -31,6 +31,7 @@ class Code(object):
     enable = False
     short_sell_enable = False
     qty_to_sell = 0
+    force_to_liquidate = False
     my_observer = None
 
     def __init__(self):
@@ -140,6 +141,11 @@ class Code(object):
 
         self.qty_to_sell = self.codes['qty_to_sell'][self.code_index]
 
+        if self.codes['force_to_liquidate'][self.code_index] == 'yes':
+            self.force_to_liquidate = True
+        else:
+            self.force_to_liquidate = False
+
         self.print()
 
         self.trade_ctx = algo.Helper.trade_context_setting(self.hk_trade_ctx,
@@ -182,19 +188,22 @@ class Code(object):
 
             if self.enable:
                 try:
-                    ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, self.start, self.end)
+                    if self.force_to_liquidate:
+                        algo.Program.force_to_liquidate(self.quote_ctx, self.trade_ctx, self.trade_env, self.code)
+                    else:
+                        ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, self.start, self.end)
 
-                    if ret_code == ft.RET_OK:
-                        sma_1 = talib.SMA(np.array(klines['close']), self.sma_parameters[0])
-                        sma_2 = talib.SMA(np.array(klines['close']), self.sma_parameters[1])
-                        sma_3 = talib.SMA(np.array(klines['close']), self.sma_parameters[2])
+                        if ret_code == ft.RET_OK:
+                            sma_1 = talib.SMA(np.array(klines['close']), self.sma_parameters[0])
+                            sma_2 = talib.SMA(np.array(klines['close']), self.sma_parameters[1])
+                            sma_3 = talib.SMA(np.array(klines['close']), self.sma_parameters[2])
 
-                        macd, signal, hist = talib.MACD(np.array(klines['close']),
-                                                        self.macd_parameters[0],
-                                                        self.macd_parameters[1],
-                                                        self.macd_parameters[2])
-                        algo.Program.trade_macd_sma(self.quote_ctx, self.trade_ctx, self.trade_env, self.code,
-                                                    self.qty_to_buy, self.short_sell_enable, self.qty_to_sell, macd, signal, sma_1, sma_2)
+                            macd, signal, hist = talib.MACD(np.array(klines['close']),
+                                                            self.macd_parameters[0],
+                                                            self.macd_parameters[1],
+                                                            self.macd_parameters[2])
+                            algo.Program.trade_macd_sma(self.quote_ctx, self.trade_ctx, self.trade_env, self.code,
+                                                        self.qty_to_buy, self.short_sell_enable, self.qty_to_sell, macd, signal, sma_1, sma_2)
 
                     time.sleep(3)
                 except TypeError:
@@ -281,6 +290,6 @@ class Code(object):
 
             code_index = code_index + 1
 
-        year_result.to_csv('C:/temp/result/year_result_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")))
+        year_result.to_csv('C:/temp/result/year_result_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
 
 
