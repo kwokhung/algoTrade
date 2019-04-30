@@ -54,12 +54,12 @@ class Quote(object):
             symbol = response_data['symbol']
             intraday = response_data['intraday']
 
-            for time_key in intraday:
-                klines.loc[len(klines)] = [code, time_key, intraday[time_key]['open'], intraday[time_key]['high'],
-                                           intraday[time_key]['low'], intraday[time_key]['close'], 0,
-                                           intraday[time_key]['volume']]
-
             klines = pd.DataFrame(columns=['code', 'time_key', 'open', 'high', 'low', 'close', 'change_rate', 'volume'])
+
+            for time_key in intraday:
+                klines.loc[len(klines)] = [code, time_key, float(intraday[time_key]['open']), float(intraday[time_key]['high']),
+                                           float(intraday[time_key]['low']), float(intraday[time_key]['close']), 0.0,
+                                           int(intraday[time_key]['volume'])]
         except KeyError:
             klines = pd.read_csv('C:/temp/worldtradingdata_klines.csv')
 
