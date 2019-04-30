@@ -38,6 +38,8 @@ class Trade(object):
         qty = int(math.floor(power / last_price))
         qty = qty // lot_size * lot_size
         """
+        print('Buy {} {}@{}'.format(code, qty, price))
+
         ret_code, order = trade_ctx.place_order(
             qty=qty,
             price=price,
@@ -46,10 +48,15 @@ class Trade(object):
             order_type=ft.OrderType.NORMAL,
             trd_env=trade_env)
 
+        if ret_code != ft.RET_OK:
+            print(order)
+
         return ret_code, order
 
     @staticmethod
     def sell(trade_ctx, trade_env, code, qty, price):
+        print('Sell {} {}@{}'.format(code, qty, price))
+
         ret_code, order = trade_ctx.place_order(
             qty=qty,
             price=price,
@@ -58,6 +65,9 @@ class Trade(object):
             order_type=ft.OrderType.NORMAL,
             trd_env=trade_env)
 
+        if ret_code != ft.RET_OK:
+            print(order)
+
         return ret_code, order
 
     @staticmethod
@@ -65,10 +75,10 @@ class Trade(object):
         ret_code, order_list = trade_ctx.order_list_query(trd_env=trade_env)
 
         for i, row in order_list.iterrows():
-            print('{}. order_id = {}'.format(i, row['order_id']))
-            print('{}. order_status = {}'.format(i, row['order_status']))
-            print('{}. code = {}'.format(i, row['code']))
-            if row['order_status'] == code and (row['order_status'] == ft.OrderStatus.SUBMITTED or row['order_status'] == ft.OrderStatus.FILLED_PART):
+            # print('{}. order_id = {}'.format(i, row['order_id']))
+            # print('{}. order_status = {}'.format(i, row['order_status']))
+            # print('{}. code = {}'.format(i, row['code']))
+            if row['code'] == code and (row['order_status'] == ft.OrderStatus.SUBMITTED or row['order_status'] == ft.OrderStatus.FILLED_PART):
                 ret_code, modify_order = trade_ctx.modify_order(
                     modify_order_op=ft.ModifyOrderOp.CANCEL,
                     order_id=row['order_id'],
@@ -80,10 +90,8 @@ class Trade(object):
 
     @staticmethod
     def check_tradable(quote_ctx, trade_ctx, trade_env, code):
-        if trade_env == ft.TrdEnv.SIMULATE:
-            return True
-        else:
-            return True
+        if trade_env == ft.TrdEnv.REAL:
+            return False
 
         ret_code, global_states = quote_ctx.get_global_state()
 

@@ -90,7 +90,7 @@ class Program(object):
 
         if algo.Program.sell_signal_from_macd_sma(-1, macd, signal, sma_1, sma_2, short_sell_enable):
             algo.Program.suggest_sell(quote_ctx, trade_ctx, trade_env, code, short_sell_enable, qty_to_sell)
-        elif algo.Program.buy_signal_from_macd_sma(i, macd, signal, sma_1, sma_2):
+        elif algo.Program.buy_signal_from_macd_sma(-1, macd, signal, sma_1, sma_2):
             algo.Program.suggest_buy(quote_ctx, trade_ctx, trade_env, code, qty_to_buy)
 
     @staticmethod
@@ -152,6 +152,9 @@ class Program(object):
         if macd[i] > signal[i]:
             return True
 
+        if not (macd[i] > signal[i]):
+            return False
+
         if not (macd[i] > signal[i] and macd[i - 2] > signal[i - 2] and macd[i - 4] > signal[i - 4]):
             return False
 
@@ -177,6 +180,9 @@ class Program(object):
         if macd[i] < signal[i]:
             return True
 
+        if not (macd[i] < signal[i]):
+            return False
+
         if not (macd[i] < signal[i] and macd[i - 2] < signal[i - 2] and macd[i - 4] < signal[i - 4]):
             return False
 
@@ -199,36 +205,43 @@ class Program(object):
 
     @staticmethod
     def suggest_buy(quote_ctx, trade_ctx, trade_env, code, qty_to_buy):
-        print('Suggest to buy')
+        try:
+            print('Suggest to buy')
 
-        position = algo.Trade.get_position(trade_ctx, trade_env, code)
-        print('Position: {}'.format(position))
+            position = algo.Trade.get_position(trade_ctx, trade_env, code)
+            print('Position: {}'.format(position))
 
-        last_price = algo.Quote.get_last_price(quote_ctx, code)
-        print('Last price: {}'.format(last_price))
+            last_price = algo.Quote.get_last_price(quote_ctx, code)
+            print('Last price: {}'.format(last_price))
 
-        if position < qty_to_buy:
-            buy_qty = qty_to_buy - position
-            print('Buy {}'.format(buy_qty))
-            algo.Trade.clear_order(trade_ctx, trade_env, code)
-            algo.Trade.buy(trade_ctx, trade_env, code, buy_qty, last_price)
+            if position < qty_to_buy:
+                buy_qty = qty_to_buy - position
+                print('Buy {}'.format(buy_qty))
+                algo.Trade.clear_order(trade_ctx, trade_env, code)
+                algo.Trade.buy(trade_ctx, trade_env, code, buy_qty, last_price)
+        except Exception as e:
+            print(e)
 
     @staticmethod
     def suggest_sell(quote_ctx, trade_ctx, trade_env, code, short_sell_enable, qty_to_sell):
-        print('Suggest to sell')
+        try:
+            print('Suggest to sell')
 
-        position = algo.Trade.get_position(trade_ctx, trade_env, code)
-        print('Position: {}'.format(position))
+            position = algo.Trade.get_position(trade_ctx, trade_env, code)
+            print('Position: {}'.format(position))
 
-        last_price = algo.Quote.get_last_price(quote_ctx, code)
-        print('Last price: {}'.format(last_price))
+            last_price = algo.Quote.get_last_price(quote_ctx, code)
+            print('Last price: {}'.format(last_price))
 
-        if position > 0:
-            print('Sell {}'.format(position))
-            algo.Trade.clear_order(trade_ctx, trade_env, code)
-            algo.Trade.sell(trade_ctx, trade_env, code, position, last_price)
-        elif short_sell_enable:
-            sell_qty = qty_to_sell + position
-            print('Short Sell {}'.format(sell_qty))
-            algo.Trade.clear_order(trade_ctx, trade_env, code)
-            algo.Trade.sell(trade_ctx, trade_env, code, sell_qty, last_price)
+            if position > 0:
+                print('Sell {}'.format(position))
+                algo.Trade.clear_order(trade_ctx, trade_env, code)
+                algo.Trade.sell(trade_ctx, trade_env, code, position, last_price)
+            elif short_sell_enable:
+                sell_qty = qty_to_sell + position
+                print('Short Sell {}'.format(sell_qty))
+                algo.Trade.clear_order(trade_ctx, trade_env, code)
+                algo.Trade.sell(trade_ctx, trade_env, code, sell_qty, last_price)
+        except Exception as e:
+            print(e)
+
