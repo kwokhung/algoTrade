@@ -1,5 +1,6 @@
 import algo
 import time
+import datetime
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -84,40 +85,59 @@ class Program(object):
         return sma_1, sma_2, sma_3, macd, signal, hist
 
     @staticmethod
-    def trade_macd_sma(quote_ctx, trade_ctx, trade_env, code, qty_to_buy, short_sell_enable, qty_to_sell, macd, signal, sma_1, sma_2):
+    def trade_macd_sma(quote_ctx, trade_ctx, trade_env, code, qty_to_buy, short_sell_enable, qty_to_sell, time_key, close, macd, signal, sma_1, sma_2):
         if not algo.Trade.check_tradable(quote_ctx, trade_ctx, trade_env, code):
             return
 
-        if algo.Program.sell_signal_from_macd_sma(-1, macd, signal, sma_1, sma_2, short_sell_enable):
+        date_time = datetime.datetime.strptime(time_key[-1], '%Y-%m-%d %H:%M:%S')
+
+        if 'HK.' in code:
+            liquidation_time = datetime.time(15, 30, 0)
+
+        if 'HK.' in code and date_time.time() >= liquidation_time:
+            algo.Program.force_to_liquidate(quote_ctx, trade_ctx, trade_env, code)
+        elif algo.Program.sell_signal_occur(-1, close, macd, signal, sma_1, sma_2, short_sell_enable):
             algo.Program.suggest_sell(quote_ctx, trade_ctx, trade_env, code, short_sell_enable, qty_to_sell)
-        elif algo.Program.buy_signal_from_macd_sma(-1, macd, signal, sma_1, sma_2):
+        elif algo.Program.buy_signal_occur(-1, close, macd, signal, sma_1, sma_2):
             algo.Program.suggest_buy(quote_ctx, trade_ctx, trade_env, code, qty_to_buy)
 
     @staticmethod
     def test_macd_sma(code, short_sell_enable, klines, macd_parameter1, macd_parameter2, macd_parameter3, sma_parameter1, sma_parameter2, sma_parameter3):
-        # change_rate = np.array(klines['change_rate']) / 100
+        time_key = np.array(klines['time_key'])
         close = np.array(klines['close'])
-        change_rate = np.array(klines['close']) - np.array(klines['close'])
-        action = np.array(klines['close']) - np.array(klines['close'])
-        position = np.array(klines['close']) - np.array(klines['close'])
-        p_l = np.array(klines['close']) - np.array(klines['close'])
-        cumulated_p_l = np.array(klines['close']) - np.array(klines['close'])
+        change_rate = close - close
+        action = close - close
+        position = close - close
+        p_l = close - close
+        cumulated_p_l = close - close
 
-        sma_1 = talib.SMA(np.array(klines['close']), sma_parameter1)
-        sma_2 = talib.SMA(np.array(klines['close']), sma_parameter2)
-        sma_3 = talib.SMA(np.array(klines['close']), sma_parameter3)
+        sma_1 = talib.SMA(close, sma_parameter1)
+        sma_2 = talib.SMA(close, sma_parameter2)
+        sma_3 = talib.SMA(close, sma_parameter3)
 
-        macd, signal, hist = talib.MACD(np.array(klines['close']), macd_parameter1, macd_parameter2, macd_parameter3)
+        macd, signal, hist = talib.MACD(close, macd_parameter1, macd_parameter2, macd_parameter3)
 
-        for i in range(macd_parameter2 + macd_parameter3 - 2, len(klines['close'])):
-            if algo.Program.sell_signal_from_macd_sma(i, macd, signal, sma_1, sma_2, short_sell_enable):
+        for i in range(macd_parameter2 + macd_parameter3 - 2, len(close)):
+            date_time = datetime.datetime.strptime(time_key[i], '%Y-%m-%d %H:%M:%S')
+
+            if 'HK.' in code:
+                liquidation_time = datetime.time(15, 30, 0)
+
+            if 'HK.' in code and date_time.time() >= liquidation_time:
+                if position[i - 1] > 0:
+                    action[i] = -1
+                elif position[i - 1] < 0:
+                    action[i] = 1
+                else:
+                    action[i] = 0
+            elif algo.Program.sell_signal_occur(i, close, macd, signal, sma_1, sma_2, short_sell_enable):
                 if position[i - 1] > 0:
                     action[i] = -1
                 elif position[i - 1] == 0 and short_sell_enable:
                     action[i] = -1
                 else:
                     action[i] = 0
-            elif algo.Program.buy_signal_from_macd_sma(i, macd, signal, sma_1, sma_2):
+            elif algo.Program.buy_signal_occur(i, close, macd, signal, sma_1, sma_2):
                 if position[i - 1] <= 0:
                     action[i] = 1
                 else:
@@ -137,68 +157,80 @@ class Program(object):
             # print('p&l({}): {}%'.format(i, p_l[i] * 100))
             # print('cumulated p&l({}): {}%'.format(i, cumulated_p_l[i] * 100))
 
-        test_result = pd.DataFrame({'code': np.array(klines['code']), 'time_key': np.array(klines['time_key']),
-                                    'close': np.array(klines['close']), 'change_rate': change_rate, 'macd': macd,
+        test_result = pd.DataFrame({'code': np.array(klines['code']), 'time_key': time_key,
+                                    'close': close, 'change_rate': change_rate, 'macd': macd,
                                     'signal': signal, 'hist': hist, 'sma_1': sma_1,
                                     'sma_2': sma_2, 'sma_3': sma_3, 'action': action, 'position': position, 'p&l': p_l,
                                     'cumulated p&l': cumulated_p_l})
-        print(test_result.tail(5))
+        print(test_result.tail(1))
         test_result.to_csv('C:/temp/result/{}_result_{}.csv'.format(code, time.strftime("%Y%m%d%H%M%S")), float_format='%f')
 
         return test_result
 
     @staticmethod
-    def buy_signal_from_macd_sma(i, macd, signal, sma_1, sma_2):
-        if macd[i] > signal[i] and False:
-            return True
+    def buy_signal_occur(i, close, macd, signal, sma_1, sma_2):
+        return algo.Program.buy_signal_before_cross(i, close, macd, signal, sma_1, sma_2) or\
+               algo.Program.buy_signal_after_cross(i, close, macd, signal, sma_1, sma_2)
 
+    @staticmethod
+    def buy_signal_before_cross(i, close, macd, signal, sma_1, sma_2):
         if not (macd[i] > signal[i]):
             return False
 
-        if not (macd[i] > signal[i] and macd[i - 2] > signal[i - 2] and macd[i - 4] > signal[i - 4]):
+        if not (macd[i - 2] < signal[i - 2]):
             return False
 
-        if not (macd[i] > macd[i - 2] and macd[i - 2] > macd[i - 4]):
+        if not (macd[i - 3] < signal[i - 3]):
             return False
 
-        if not (signal[i] > signal[i - 2] and signal[i - 1] > signal[i - 4]):
-            return False
-
-        if not (sma_1[i] > sma_2[i] and sma_1[i - 2] > sma_2[i - 2] and sma_1[i - 4] > sma_2[i - 4]):
-            return False
-
-        if not (sma_1[i] > sma_1[i - 2] and sma_1[i - 2] > sma_1[i - 4]):
-            return False
-
-        if not (sma_2[i] > sma_2[i - 2] and sma_2[i - 1] > sma_2[i - 4]):
+        if close[i] <= close[i - 1] or close[i - 1] <= close[i - 2] or close[i - 2] <= close[i - 3]:
             return False
 
         return True
 
     @staticmethod
-    def sell_signal_from_macd_sma(i, macd, signal, sma_1, sma_2, short_sell_enable):
-        if macd[i] < signal[i] and False:
-            return True
+    def buy_signal_after_cross(i, close, macd, signal, sma_1, sma_2):
+        if not (macd[i] > signal[i]):
+            return False
 
+        if not (macd[i - 1] > signal[i - 1]):
+            return False
+
+        if not (macd[i - 2] > signal[i - 2]):
+            return False
+
+        return True
+
+    @staticmethod
+    def sell_signal_occur(i, close, macd, signal, sma_1, sma_2, short_sell_enable):
+        return algo.Program.sell_signal_before_cross(i, close, macd, signal, sma_1, sma_2, short_sell_enable) or\
+               algo.Program.sell_signal_after_cross(i, close, macd, signal, sma_1, sma_2, short_sell_enable)
+
+    @staticmethod
+    def sell_signal_before_cross(i, close, macd, signal, sma_1, sma_2, short_sell_enable):
         if not (macd[i] < signal[i]):
             return False
 
-        if not (macd[i] < signal[i] and macd[i - 2] < signal[i - 2] and macd[i - 4] < signal[i - 4]):
+        if not (macd[i - 2] > signal[i - 2]):
             return False
 
-        if not (macd[i] < macd[i - 2] and macd[i - 2] < macd[i - 4]):
+        if not (macd[i - 3] > signal[i - 3]):
             return False
 
-        if not (signal[i] < signal[i - 2] and signal[i - 1] < signal[i - 4]):
+        if close[i] >= close[i - 1] or close[i - 1] >= close[i - 2] or close[i - 2] >= close[i - 3]:
             return False
 
-        if not (sma_1[i] < sma_2[i] and sma_1[i - 2] < sma_2[i - 2] and sma_1[i - 4] < sma_2[i - 4]):
+        return True
+
+    @staticmethod
+    def sell_signal_after_cross(i, close, macd, signal, sma_1, sma_2, short_sell_enable):
+        if not (macd[i] < signal[i]):
             return False
 
-        if not (sma_1[i] < sma_1[i - 2] and sma_1[i - 2] < sma_1[i - 4]):
+        if not (macd[i - 1] < signal[i - 1]):
             return False
 
-        if not (sma_2[i] < sma_2[i - 2] and sma_2[i - 1] < sma_2[i - 4]):
+        if not (macd[i - 2] < signal[i - 2]):
             return False
 
         return True

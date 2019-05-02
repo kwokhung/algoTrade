@@ -194,20 +194,24 @@ class Code(object):
                         ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, self.start, self.end)
 
                         if ret_code == ft.RET_OK:
-                            sma_1 = talib.SMA(np.array(klines['close']), self.sma_parameters[0])
-                            sma_2 = talib.SMA(np.array(klines['close']), self.sma_parameters[1])
-                            sma_3 = talib.SMA(np.array(klines['close']), self.sma_parameters[2])
+                            time_key = np.array(klines['time_key'])
+                            close = np.array(klines['close'])
 
-                            macd, signal, hist = talib.MACD(np.array(klines['close']),
+                            sma_1 = talib.SMA(close, self.sma_parameters[0])
+                            sma_2 = talib.SMA(close, self.sma_parameters[1])
+                            sma_3 = talib.SMA(close, self.sma_parameters[2])
+
+                            macd, signal, hist = talib.MACD(close,
                                                             self.macd_parameters[0],
                                                             self.macd_parameters[1],
                                                             self.macd_parameters[2])
                             algo.Program.trade_macd_sma(self.quote_ctx, self.trade_ctx, self.trade_env, self.code,
-                                                        self.qty_to_buy, self.short_sell_enable, self.qty_to_sell, macd, signal, sma_1, sma_2)
-
-                    time.sleep(3)
+                                                        self.qty_to_buy, self.short_sell_enable, self.qty_to_sell,
+                                                        time_key, close, macd, signal, sma_1, sma_2)
                 except TypeError:
                     print('get_kline failed')
+
+                time.sleep(3)
 
             self.roll_code()
 
@@ -234,17 +238,17 @@ class Code(object):
                                                    self.sma_parameters[0],
                                                    self.sma_parameters[1],
                                                    self.sma_parameters[2])
-
-                    time.sleep(3)
                 except TypeError:
                     print('get_kline failed')
+
+                time.sleep(3)
 
             self.roll_code()
 
             code_index = code_index + 1
 
     def test_year(self):
-        trade_days = self.quote_ctx.get_trading_days(ft.Market.HK, start='2019-04-01', end='2019-04-26')
+        trade_days = self.quote_ctx.get_trading_days(ft.Market.HK, start='2019-04-01', end='2019-04-30')
 
         time_column = pd.DataFrame(columns=['time_key'])
 
@@ -278,10 +282,10 @@ class Code(object):
 
                             cumulated_p_l = test_result['cumulated p&l'].iloc[-1]
                             code_column.loc[len(code_column)] = [cumulated_p_l]
-
-                        time.sleep(3)
                     except TypeError:
                         print('get_kline failed')
+
+                    time.sleep(3)
 
                 year_result = pd.concat([year_result, code_column], axis=1)
                 print(year_result)
