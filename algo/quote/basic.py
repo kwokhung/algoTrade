@@ -29,11 +29,16 @@ class Quote(object):
             max_count=60 * 24)
 
         if ret_code == ft.RET_OK:
-            print('{}: {}'.format(klines['time_key'].iloc[-1], klines['close'].iloc[-1]))
+            if len(klines['time_key']) > 0:
+                print('{}: {}'.format(klines['time_key'].iloc[-1], klines['close'].iloc[-1]))
 
-            klines.to_csv('C:/temp/{}_klines.csv'.format(code), float_format='%f')
+                klines.to_csv('C:/temp/{}_klines.csv'.format(code), float_format='%f')
 
-            return ft.RET_OK, klines
+                return ft.RET_OK, klines
+            else:
+                print('no klines')
+
+                return ft.RET_ERROR
         else:
             print('return_code: {}'.format(ret_code))
 
@@ -63,11 +68,17 @@ class Quote(object):
         except KeyError:
             klines = pd.read_csv('C:/temp/worldtradingdata_klines.csv')
 
-        print(klines.tail(5))
-        print('{}: {}'.format(klines['time_key'].iloc[-1], klines['close'].iloc[-1]))
+        if len(klines['time_key']) > 0:
+            print(klines.tail(5))
+            print('{}: {}'.format(klines['time_key'].iloc[-1], klines['close'].iloc[-1]))
 
-        klines.to_csv('C:/temp/{}_klines.csv'.format(code), float_format='%f')
-        return ft.RET_OK, klines
+            klines.to_csv('C:/temp/{}_klines.csv'.format(code), float_format='%f')
+
+            return ft.RET_OK, klines
+        else:
+            print('no klines')
+
+            return ft.RET_ERROR
 
     @staticmethod
     def get_last_price(quote_ctx, code):
