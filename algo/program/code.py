@@ -258,7 +258,17 @@ class Code(object):
             code_index = code_index + 1
 
     def test_year(self):
-        trade_days = self.quote_ctx.get_trading_days(ft.Market.HK, start='2019-04-01', end='2019-05-03')
+        start = '2019-04-01'
+
+        if start == 'today':
+            start = time.strftime("%Y-%m-%d")
+
+        end = 'today'
+
+        if end == 'today':
+            end = time.strftime("%Y-%m-%d")
+
+        trade_days = self.quote_ctx.get_trading_days(ft.Market.HK, start=start, end=end)
 
         time_column = pd.DataFrame(columns=['time_key'])
 

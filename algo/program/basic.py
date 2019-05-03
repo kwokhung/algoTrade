@@ -175,6 +175,14 @@ class Program(object):
         elif strategy == 'B':
             return algo.Program.buy_signal_before_cross(i, close, macd, signal, sma_1, sma_2) or\
                    algo.Program.buy_signal_after_cross(i, close, macd, signal, sma_1, sma_2)
+        elif strategy == 'C':
+            return algo.Program.sell_signal_before_cross(i, close, macd, signal, sma_1, sma_2, short_sell_enable)
+        elif strategy == 'D':
+            return algo.Program.buy_signal_before_cross(i, close, macd, signal, sma_1, sma_2)
+        elif strategy == 'E':
+            return algo.Program.sell_signal_after_cross(i, close, macd, signal, sma_1, sma_2, short_sell_enable)
+        elif strategy == 'F':
+            return algo.Program.buy_signal_after_cross(i, close, macd, signal, sma_1, sma_2)
         else:
             return False
 
@@ -215,6 +223,14 @@ class Program(object):
         elif strategy == 'B':
             return algo.Program.sell_signal_before_cross(i, close, macd, signal, sma_1, sma_2, short_sell_enable) or \
                    algo.Program.sell_signal_after_cross(i, close, macd, signal, sma_1, sma_2, short_sell_enable)
+        elif strategy == 'C':
+            return algo.Program.buy_signal_before_cross(i, close, macd, signal, sma_1, sma_2)
+        elif strategy == 'D':
+            return algo.Program.sell_signal_before_cross(i, close, macd, signal, sma_1, sma_2, short_sell_enable)
+        elif strategy == 'E':
+            return algo.Program.buy_signal_after_cross(i, close, macd, signal, sma_1, sma_2)
+        elif strategy == 'F':
+            return algo.Program.sell_signal_after_cross(i, close, macd, signal, sma_1, sma_2, short_sell_enable)
         else:
             return False
 
