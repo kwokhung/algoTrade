@@ -85,7 +85,7 @@ class Program(object):
         return sma_1, sma_2, sma_3, macd, signal, hist
 
     @staticmethod
-    def trade_macd_sma(quote_ctx, trade_ctx, trade_env, code, qty_to_buy, short_sell_enable, qty_to_sell, time_key, close, macd, signal, sma_1, sma_2):
+    def trade_macd_sma(quote_ctx, trade_ctx, trade_env, code, qty_to_buy, short_sell_enable, qty_to_sell, strategy, time_key, close, macd, signal, sma_1, sma_2):
         if not algo.Trade.check_tradable(quote_ctx, trade_ctx, trade_env, code):
             return
 
@@ -96,13 +96,13 @@ class Program(object):
 
         if 'HK.' in code and date_time.time() >= liquidation_time:
             algo.Program.force_to_liquidate(quote_ctx, trade_ctx, trade_env, code)
-        elif algo.Program.sell_signal_occur(-1, close, macd, signal, sma_1, sma_2, short_sell_enable):
+        elif algo.Program.sell_signal_occur(-1, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy):
             algo.Program.suggest_sell(quote_ctx, trade_ctx, trade_env, code, short_sell_enable, qty_to_sell)
-        elif algo.Program.buy_signal_occur(-1, close, macd, signal, sma_1, sma_2):
+        elif algo.Program.buy_signal_occur(-1, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy):
             algo.Program.suggest_buy(quote_ctx, trade_ctx, trade_env, code, qty_to_buy)
 
     @staticmethod
-    def test_macd_sma(code, short_sell_enable, klines, macd_parameter1, macd_parameter2, macd_parameter3, sma_parameter1, sma_parameter2, sma_parameter3):
+    def test_macd_sma(code, short_sell_enable, strategy, klines, macd_parameter1, macd_parameter2, macd_parameter3, sma_parameter1, sma_parameter2, sma_parameter3):
         time_key = np.array(klines['time_key'])
         close = np.array(klines['close'])
         change_rate = close - close
@@ -130,14 +130,14 @@ class Program(object):
                     action[i] = 1
                 else:
                     action[i] = 0
-            elif algo.Program.sell_signal_occur(i, close, macd, signal, sma_1, sma_2, short_sell_enable):
+            elif algo.Program.sell_signal_occur(i, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy):
                 if position[i - 1] > 0:
                     action[i] = -1
                 elif position[i - 1] == 0 and short_sell_enable:
                     action[i] = -1
                 else:
                     action[i] = 0
-            elif algo.Program.buy_signal_occur(i, close, macd, signal, sma_1, sma_2):
+            elif algo.Program.buy_signal_occur(i, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy):
                 if position[i - 1] <= 0:
                     action[i] = 1
                 else:
@@ -145,7 +145,7 @@ class Program(object):
             else:
                 action[i] = 0
 
-            change_rate[i] = (close[i] / close[i - 1]) - 1
+            change_rate[i] = (close[i] / close[i - 1]) - 1 if close[i - 1] != 0 else 0
             position[i] = position[i - 1] + action[i]
             p_l[i] = position[i - 1] * change_rate[i]
             cumulated_p_l[i] = cumulated_p_l[i - 1] + p_l[i]
@@ -168,9 +168,15 @@ class Program(object):
         return test_result
 
     @staticmethod
-    def buy_signal_occur(i, close, macd, signal, sma_1, sma_2):
-        return algo.Program.buy_signal_before_cross(i, close, macd, signal, sma_1, sma_2) or\
-               algo.Program.buy_signal_after_cross(i, close, macd, signal, sma_1, sma_2)
+    def buy_signal_occur(i, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy):
+        if strategy == 'A':
+            return algo.Program.sell_signal_before_cross(i, close, macd, signal, sma_1, sma_2, short_sell_enable) or\
+                   algo.Program.sell_signal_after_cross(i, close, macd, signal, sma_1, sma_2, short_sell_enable)
+        elif strategy == 'B':
+            return algo.Program.buy_signal_before_cross(i, close, macd, signal, sma_1, sma_2) or\
+                   algo.Program.buy_signal_after_cross(i, close, macd, signal, sma_1, sma_2)
+        else:
+            return False
 
     @staticmethod
     def buy_signal_before_cross(i, close, macd, signal, sma_1, sma_2):
@@ -202,9 +208,15 @@ class Program(object):
         return True
 
     @staticmethod
-    def sell_signal_occur(i, close, macd, signal, sma_1, sma_2, short_sell_enable):
-        return algo.Program.sell_signal_before_cross(i, close, macd, signal, sma_1, sma_2, short_sell_enable) or\
-               algo.Program.sell_signal_after_cross(i, close, macd, signal, sma_1, sma_2, short_sell_enable)
+    def sell_signal_occur(i, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy):
+        if strategy == 'A':
+            return algo.Program.buy_signal_before_cross(i, close, macd, signal, sma_1, sma_2) or\
+                   algo.Program.buy_signal_after_cross(i, close, macd, signal, sma_1, sma_2)
+        elif strategy == 'B':
+            return algo.Program.sell_signal_before_cross(i, close, macd, signal, sma_1, sma_2, short_sell_enable) or \
+                   algo.Program.sell_signal_after_cross(i, close, macd, signal, sma_1, sma_2, short_sell_enable)
+        else:
+            return False
 
     @staticmethod
     def sell_signal_before_cross(i, close, macd, signal, sma_1, sma_2, short_sell_enable):
@@ -246,7 +258,12 @@ class Program(object):
             last_price = algo.Quote.get_last_price(quote_ctx, code)
             print('Last price: {}'.format(last_price))
 
-            if position < qty_to_buy:
+            if position < 0:
+                buy_qty = 0 - position
+                print('Buy Back {}'.format(buy_qty))
+                algo.Trade.clear_order(trade_ctx, trade_env, code)
+                algo.Trade.buy(trade_ctx, trade_env, code, buy_qty, last_price)
+            elif qty_to_buy - position > 0:
                 buy_qty = qty_to_buy - position
                 print('Buy {}'.format(buy_qty))
                 algo.Trade.clear_order(trade_ctx, trade_env, code)
@@ -269,7 +286,7 @@ class Program(object):
                 print('Sell {}'.format(position))
                 algo.Trade.clear_order(trade_ctx, trade_env, code)
                 algo.Trade.sell(trade_ctx, trade_env, code, position, last_price)
-            elif short_sell_enable:
+            elif short_sell_enable and qty_to_sell + position > 0:
                 sell_qty = qty_to_sell + position
                 print('Short Sell {}'.format(sell_qty))
                 algo.Trade.clear_order(trade_ctx, trade_env, code)

@@ -32,6 +32,7 @@ class Code(object):
     short_sell_enable = False
     qty_to_sell = 0
     force_to_liquidate = False
+    strategy = ''
     my_observer = None
 
     def __init__(self):
@@ -146,6 +147,8 @@ class Code(object):
         else:
             self.force_to_liquidate = False
 
+        self.strategy = self.codes['strategy'][self.code_index]
+
         self.print()
 
         self.trade_ctx = algo.Helper.trade_context_setting(self.hk_trade_ctx,
@@ -205,8 +208,14 @@ class Code(object):
                                                             self.macd_parameters[0],
                                                             self.macd_parameters[1],
                                                             self.macd_parameters[2])
-                            algo.Program.trade_macd_sma(self.quote_ctx, self.trade_ctx, self.trade_env, self.code,
-                                                        self.qty_to_buy, self.short_sell_enable, self.qty_to_sell,
+                            algo.Program.trade_macd_sma(self.quote_ctx,
+                                                        self.trade_ctx,
+                                                        self.trade_env,
+                                                        self.code,
+                                                        self.qty_to_buy,
+                                                        self.short_sell_enable,
+                                                        self.qty_to_sell,
+                                                        self.strategy,
                                                         time_key, close, macd, signal, sma_1, sma_2)
                 except TypeError:
                     print('get_kline failed')
@@ -231,6 +240,7 @@ class Code(object):
                     if ret_code == ft.RET_OK:
                         algo.Program.test_macd_sma(self.code,
                                                    self.short_sell_enable,
+                                                   self.strategy,
                                                    klines,
                                                    self.macd_parameters[0],
                                                    self.macd_parameters[1],
@@ -248,7 +258,7 @@ class Code(object):
             code_index = code_index + 1
 
     def test_year(self):
-        trade_days = self.quote_ctx.get_trading_days(ft.Market.HK, start='2019-04-01', end='2019-04-30')
+        trade_days = self.quote_ctx.get_trading_days(ft.Market.HK, start='2019-04-01', end='2019-05-03')
 
         time_column = pd.DataFrame(columns=['time_key'])
 
@@ -272,6 +282,7 @@ class Code(object):
                         if ret_code == ft.RET_OK:
                             test_result = algo.Program.test_macd_sma(self.code,
                                                                      self.short_sell_enable,
+                                                                     self.strategy,
                                                                      klines,
                                                                      self.macd_parameters[0],
                                                                      self.macd_parameters[1],
