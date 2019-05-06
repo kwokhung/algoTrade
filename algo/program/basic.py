@@ -85,16 +85,11 @@ class Program(object):
         return sma_1, sma_2, sma_3, macd, signal, hist
 
     @staticmethod
-    def trade_macd_sma(quote_ctx, trade_ctx, trade_env, code, qty_to_buy, short_sell_enable, qty_to_sell, strategy, time_key, close, macd, signal, sma_1, sma_2):
+    def trade(quote_ctx, trade_ctx, trade_env, code, qty_to_buy, short_sell_enable, qty_to_sell, strategy, time_key, close, macd, signal, sma_1, sma_2):
         if not algo.Trade.check_tradable(quote_ctx, trade_ctx, trade_env, code):
             return
 
-        date_time = datetime.datetime.strptime(time_key[-1], '%Y-%m-%d %H:%M:%S')
-
-        if 'HK.' in code:
-            liquidation_time = datetime.time(15, 30, 0)
-
-        if 'HK.' in code and date_time.time() >= liquidation_time:
+        if algo.Program.time_to_liquidate(code, time_key[-1]) or algo.Program.need_to_cut_loss(trade_ctx, trade_env, code):
             algo.Program.force_to_liquidate(quote_ctx, trade_ctx, trade_env, code)
         elif algo.Program.sell_signal_occur(-1, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy):
             algo.Program.suggest_sell(quote_ctx, trade_ctx, trade_env, code, short_sell_enable, qty_to_sell)
@@ -102,7 +97,7 @@ class Program(object):
             algo.Program.suggest_buy(quote_ctx, trade_ctx, trade_env, code, qty_to_buy)
 
     @staticmethod
-    def test_macd_sma(code, short_sell_enable, strategy, klines, macd_parameter1, macd_parameter2, macd_parameter3, sma_parameter1, sma_parameter2, sma_parameter3):
+    def test(quote_ctx, trade_ctx, trade_env, code, short_sell_enable, strategy, klines, macd_parameter1, macd_parameter2, macd_parameter3, sma_parameter1, sma_parameter2, sma_parameter3):
         time_key = np.array(klines['time_key'])
         close = np.array(klines['close'])
         change_rate = close - close
@@ -118,12 +113,7 @@ class Program(object):
         macd, signal, hist = talib.MACD(close, macd_parameter1, macd_parameter2, macd_parameter3)
 
         for i in range(macd_parameter2 + macd_parameter3 - 2, len(close)):
-            date_time = datetime.datetime.strptime(time_key[i], '%Y-%m-%d %H:%M:%S')
-
-            if 'HK.' in code:
-                liquidation_time = datetime.time(15, 30, 0)
-
-            if 'HK.' in code and date_time.time() >= liquidation_time:
+            if algo.Program.time_to_liquidate(code, time_key[i]) or (position[i - 1] != 0 and cumulated_p_l[i - 1] * 100 <= 0.5):
                 if position[i - 1] > 0:
                     action[i] = -1
                 elif position[i - 1] < 0:
@@ -166,6 +156,47 @@ class Program(object):
         test_result.to_csv('C:/temp/result/{}_result_{}.csv'.format(code, time.strftime("%Y%m%d%H%M%S")), float_format='%f')
 
         return test_result
+
+    @staticmethod
+    def time_to_liquidate(code, time_key):
+        date_time = datetime.datetime.strptime(time_key, '%Y-%m-%d %H:%M:%S')
+
+        if 'HK.' in code:
+            liquidation_time = datetime.time(15, 45, 0)
+        elif 'SH.' in code:
+            liquidation_time = datetime.time(14, 45, 0)
+        elif 'SZ.' in code:
+            liquidation_time = datetime.time(14, 45, 0)
+        elif 'US.' in code:
+            liquidation_time = datetime.time(15, 45, 0)
+
+        if ('HK.' in code or 'SH.' in code or 'SZ.' in code or 'US.' in code) and date_time.time() >= liquidation_time:
+            print('Time to liquidate')
+
+            return True
+
+        return False
+
+    @staticmethod
+    def need_to_cut_loss(trade_ctx, trade_env, code):
+        positions = algo.Trade.get_positions(trade_ctx, trade_env, code)
+
+        try:
+            qty = int(positions['qty'])
+            pl_ratio = float(positions['pl_ratio'])
+        except TypeError:
+            qty = 0
+            pl_ratio = 0.0
+        except KeyError:
+            qty = 0
+            pl_ratio = 0.0
+
+        if qty != 0 and pl_ratio <= 0.5:
+            print('Need to cut loss')
+
+            return True
+
+        return False
 
     @staticmethod
     def buy_signal_occur(i, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy):

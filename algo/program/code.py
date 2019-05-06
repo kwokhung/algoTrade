@@ -208,15 +208,15 @@ class Code(object):
                                                             self.macd_parameters[0],
                                                             self.macd_parameters[1],
                                                             self.macd_parameters[2])
-                            algo.Program.trade_macd_sma(self.quote_ctx,
-                                                        self.trade_ctx,
-                                                        self.trade_env,
-                                                        self.code,
-                                                        self.qty_to_buy,
-                                                        self.short_sell_enable,
-                                                        self.qty_to_sell,
-                                                        self.strategy,
-                                                        time_key, close, macd, signal, sma_1, sma_2)
+                            algo.Program.trade(self.quote_ctx,
+                                               self.trade_ctx,
+                                               self.trade_env,
+                                               self.code,
+                                               self.qty_to_buy,
+                                               self.short_sell_enable,
+                                               self.qty_to_sell,
+                                               self.strategy,
+                                               time_key, close, macd, signal, sma_1, sma_2)
                 except TypeError:
                     print('get_kline failed')
 
@@ -238,16 +238,19 @@ class Code(object):
                     ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, self.start, self.end)
 
                     if ret_code == ft.RET_OK:
-                        algo.Program.test_macd_sma(self.code,
-                                                   self.short_sell_enable,
-                                                   self.strategy,
-                                                   klines,
-                                                   self.macd_parameters[0],
-                                                   self.macd_parameters[1],
-                                                   self.macd_parameters[2],
-                                                   self.sma_parameters[0],
-                                                   self.sma_parameters[1],
-                                                   self.sma_parameters[2])
+                        algo.Program.test(self.quote_ctx,
+                                          self.trade_ctx,
+                                          self.trade_env,
+                                          self.code,
+                                          self.short_sell_enable,
+                                          self.strategy,
+                                          klines,
+                                          self.macd_parameters[0],
+                                          self.macd_parameters[1],
+                                          self.macd_parameters[2],
+                                          self.sma_parameters[0],
+                                          self.sma_parameters[1],
+                                          self.sma_parameters[2])
                 except TypeError:
                     print('get_kline failed')
 
@@ -290,16 +293,16 @@ class Code(object):
                         ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, trade_day['time'], trade_day['time'])
 
                         if ret_code == ft.RET_OK:
-                            test_result = algo.Program.test_macd_sma(self.code,
-                                                                     self.short_sell_enable,
-                                                                     self.strategy,
-                                                                     klines,
-                                                                     self.macd_parameters[0],
-                                                                     self.macd_parameters[1],
-                                                                     self.macd_parameters[2],
-                                                                     self.sma_parameters[0],
-                                                                     self.sma_parameters[1],
-                                                                     self.sma_parameters[2])
+                            test_result = algo.Program.test(self.code,
+                                                            self.short_sell_enable,
+                                                            self.strategy,
+                                                            klines,
+                                                            self.macd_parameters[0],
+                                                            self.macd_parameters[1],
+                                                            self.macd_parameters[2],
+                                                            self.sma_parameters[0],
+                                                            self.sma_parameters[1],
+                                                            self.sma_parameters[2])
 
                             cumulated_p_l = test_result['cumulated p&l'].iloc[-1]
                             code_column.loc[len(code_column)] = [cumulated_p_l]

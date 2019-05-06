@@ -7,6 +7,8 @@ class Quote(object):
 
     @staticmethod
     def get_kline(quote_ctx, code, start, end):
+        # print(quote_ctx.get_history_kl_quota(get_detail=True))
+
         if 'US.' in code:
             return Quote.get_kline_worldtradingdata(code)
 
@@ -46,7 +48,7 @@ class Quote(object):
 
     @staticmethod
     def get_kline_worldtradingdata(code):
-        request_parameters = {'symbol': code.replace('US.', ''), 'range': '1', 'interval': '1', 'sort': 'asc', 'api_token': 'p2MH2x7gGdbRFUM24CxGESjDhJf541J2T1fOjQzDhQVWXXG61pmQLzKPhS1A'}
+        request_parameters = {'symbol': code.replace('aUS.', ''), 'range': '7', 'interval': '1', 'sort': 'asc', 'api_token': 'p2MH2x7gGdbRFUM24CxGESjDhJf541J2T1fOjQzDhQVWXXG61pmQLzKPhS1A'}
         response = requests.get('https://www.worldtradingdata.com/api/v1/intraday', request_parameters)
 
         if response.status_code != 200:

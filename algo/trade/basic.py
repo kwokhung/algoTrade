@@ -1,19 +1,31 @@
+import algo
 import futu as ft
 
 
 class Trade(object):
 
     @staticmethod
-    def get_position(trade_ctx, trade_env, code):
+    def get_positions(trade_ctx, trade_env, code):
         ret_code, position_list = trade_ctx.position_list_query(trd_env=trade_env)
 
         if ret_code != ft.RET_OK:
             raise Exception('Failed to get positions')
 
-        positions = position_list.set_index('code')
+        try:
+            positions = position_list.set_index('code').loc[[code]]
+        except KeyError:
+            positions = None
+
+        return positions
+
+    @staticmethod
+    def get_position(trade_ctx, trade_env, code):
+        positions = algo.Trade.get_positions(trade_ctx, trade_env, code)
 
         try:
-            position = int(positions['qty'][code])
+            position = int(positions['qty'])
+        except TypeError:
+            position = 0
         except KeyError:
             position = 0
 
