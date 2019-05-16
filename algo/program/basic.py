@@ -89,7 +89,9 @@ class Program(object):
         if not algo.Trade.check_tradable(quote_ctx, trade_ctx, trade_env, code):
             return
 
-        if algo.Program.time_to_liquidate(code, time_key[-1]) or algo.Program.need_to_cut_loss(trade_ctx, trade_env, code):
+        if algo.Program.time_to_liquidate(code, time_key[-1]) or\
+                algo.Program.need_to_cut_loss(trade_ctx, trade_env, code) or\
+                algo.Program.need_to_cut_profit(trade_ctx, trade_env, code):
             algo.Program.force_to_liquidate(quote_ctx, trade_ctx, trade_env, code)
         elif algo.Program.sell_signal_occur(-1, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy):
             algo.Program.suggest_sell(quote_ctx, trade_ctx, trade_env, code, short_sell_enable, qty_to_sell)
@@ -113,7 +115,9 @@ class Program(object):
         macd, signal, hist = talib.MACD(close, macd_parameter1, macd_parameter2, macd_parameter3)
 
         for i in range(macd_parameter2 + macd_parameter3 - 2, len(close)):
-            if algo.Program.time_to_liquidate(code, time_key[i]) or (position[i - 1] != 0 and cumulated_p_l[i - 1] * 100 <= 0.5):
+            if algo.Program.time_to_liquidate(code, time_key[i]) or\
+                    (position[i - 1] != 0 and cumulated_p_l[i - 1] * 100 <= 0.5) or\
+                    (position[i - 1] != 0 and cumulated_p_l[i - 1] * 100 > 1.0):
                 if position[i - 1] > 0:
                     action[i] = -1
                 elif position[i - 1] < 0:
@@ -193,6 +197,27 @@ class Program(object):
 
         if qty != 0 and pl_ratio <= 0.5:
             print('Need to cut loss')
+
+            return True
+
+        return False
+
+    @staticmethod
+    def need_to_cut_profit(trade_ctx, trade_env, code):
+        positions = algo.Trade.get_positions(trade_ctx, trade_env, code)
+
+        try:
+            qty = int(positions['qty'])
+            pl_ratio = float(positions['pl_ratio'])
+        except TypeError:
+            qty = 0
+            pl_ratio = 0.0
+        except KeyError:
+            qty = 0
+            pl_ratio = 0.0
+
+        if qty != 0 and pl_ratio > 1.0:
+            print('Need to cut profit')
 
             return True
 

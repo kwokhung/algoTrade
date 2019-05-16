@@ -6,14 +6,18 @@ class Trade(object):
 
     @staticmethod
     def get_positions(trade_ctx, trade_env, code):
-        ret_code, position_list = trade_ctx.position_list_query(trd_env=trade_env)
-
-        if ret_code != ft.RET_OK:
-            raise Exception('Failed to get positions')
-
         try:
+            ret_code, position_list = trade_ctx.position_list_query(trd_env=trade_env)
+
+            if ret_code != ft.RET_OK:
+                raise Exception('Failed to get positions')
+
             positions = position_list.set_index('code').loc[[code]]
         except KeyError:
+            positions = None
+        except Exception as e:
+            print(e)
+
             positions = None
 
         return positions
