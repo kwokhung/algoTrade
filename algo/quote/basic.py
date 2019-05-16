@@ -7,6 +7,60 @@ import requests
 class Quote(object):
 
     @staticmethod
+    def query_subscription(quote_ctx):
+        ret_code, subscription = quote_ctx.query_subscription(is_all_conn=True)
+
+        if ret_code == ft.RET_OK:
+            return ft.RET_OK, subscription
+        else:
+            print('return_code: {}'.format(ret_code))
+
+            return ft.RET_ERROR
+
+    @staticmethod
+    def get_global_state(quote_ctx):
+        ret_code, global_state = quote_ctx.get_global_state()
+
+        if ret_code == ft.RET_OK:
+            return ft.RET_OK, global_state
+        else:
+            print('return_code: {}'.format(ret_code))
+
+            return ft.RET_ERROR
+
+    @staticmethod
+    def get_stock_quote(quote_ctx, code):
+        try:
+            quote_ctx.subscribe([code], [ft.SubType.QUOTE])
+
+            ret_code, stock_quote = quote_ctx.get_stock_quote(code_list=[code])
+
+            if ret_code == ft.RET_OK:
+                return ft.RET_OK, stock_quote
+            else:
+                print('return_code: {}'.format(ret_code))
+
+                return ft.RET_ERROR
+        finally:
+            quote_ctx.unsubscribe([code], [ft.SubType.QUOTE])
+
+    @staticmethod
+    def get_rt_ticker(quote_ctx, code):
+        try:
+            quote_ctx.subscribe([code], [ft.SubType.TICKER])
+
+            ret_code, rt_ticker = quote_ctx.get_rt_ticker(code=code, num=1000)
+
+            if ret_code == ft.RET_OK:
+                return ft.RET_OK, rt_ticker
+            else:
+                print('return_code: {}'.format(ret_code))
+
+                return ft.RET_ERROR
+        finally:
+            quote_ctx.unsubscribe([code], [ft.SubType.TICKER])
+
+    @staticmethod
     def get_order_book(quote_ctx, code):
         try:
             quote_ctx.subscribe([code], [ft.SubType.ORDER_BOOK])
@@ -21,7 +75,6 @@ class Quote(object):
                 return ft.RET_ERROR
         finally:
             quote_ctx.unsubscribe([code], [ft.SubType.ORDER_BOOK])
-
 
     @staticmethod
     def get_referencestock_list(quote_ctx, code):

@@ -227,7 +227,12 @@ class Code(object):
             code_index = code_index + 1
 
     def test(self):
-        print(algo.Quote.get_order_book(self.quote_ctx, self.code))
+        # print(algo.Quote.query_subscription(self.quote_ctx))
+        # print(algo.Quote.get_global_state(self.quote_ctx))
+        print(algo.Quote.get_stock_quote(self.quote_ctx, self.code))
+        # print(algo.Quote.get_rt_ticker(self.quote_ctx, self.code))
+        # print(algo.Quote.get_cur_kline(self.quote_ctx, self.code))
+        # print(algo.Quote.get_order_book(self.quote_ctx, self.code))
         # print(algo.Quote.get_referencestock_list(self.quote_ctx, self.code))
         # print(algo.Quote.get_owner_plate(self.quote_ctx, self.code))
         # print(algo.Quote.get_holding_change_list(self.quote_ctx, self.code))
