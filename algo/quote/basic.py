@@ -1,3 +1,4 @@
+import algo
 import futu as ft
 from futu.quote.quote_get_warrant import Request
 import pandas as pd
@@ -7,13 +8,113 @@ import requests
 class Quote(object):
 
     @staticmethod
+    def get_trading_days(quote_ctx, market, start, end):
+        ret_code, trading_days = quote_ctx.get_trading_days(market=market, start=start, end=end)
+
+        if ret_code == ft.RET_OK:
+            return ft.RET_OK, trading_days
+        else:
+            print('return_code: ({}) {}'.format(ret_code, trading_days))
+
+            return ft.RET_ERROR
+
+    @staticmethod
+    def get_stock_basicinfo(quote_ctx, market, stock_type, code_list):
+        ret_code, stock_basicinfo = quote_ctx.get_stock_basicinfo(market=market, stock_type=stock_type, code_list=code_list)
+
+        if ret_code == ft.RET_OK:
+            return ft.RET_OK, stock_basicinfo
+        else:
+            print('return_code: ({}) {}'.format(ret_code, stock_basicinfo))
+
+            return ft.RET_ERROR
+
+    @staticmethod
+    def get_autype_list(quote_ctx, code):
+        ret_code, autype_list = quote_ctx.get_autype_list(code_list=[code])
+
+        if ret_code == ft.RET_OK:
+            return ft.RET_OK, autype_list
+        else:
+            print('return_code: ({}) {}'.format(ret_code, autype_list))
+
+            return ft.RET_ERROR
+
+    @staticmethod
+    def get_market_snapshot(quote_ctx, code):
+        ret_code, market_snapshot = quote_ctx.get_market_snapshot(code_list=[code])
+
+        if ret_code == ft.RET_OK:
+            return ft.RET_OK, market_snapshot
+        else:
+            print('return_code: ({}) {}'.format(ret_code, market_snapshot))
+
+            return ft.RET_ERROR
+
+    @staticmethod
+    def get_rt_data(quote_ctx, code):
+        try:
+            quote_ctx.subscribe([code], [ft.SubType.RT_DATA])
+
+            ret_code, rt_data = quote_ctx.get_rt_data(code=code)
+
+            if ret_code == ft.RET_OK:
+                return ft.RET_OK, rt_data
+            else:
+                print('return_code: ({}) {}'.format(ret_code, rt_data))
+
+                return ft.RET_ERROR
+        finally:
+            quote_ctx.unsubscribe([code], [ft.SubType.RT_DATA])
+
+    @staticmethod
+    def get_plate_stock(quote_ctx, plate_code):
+        ret_code, plate_stock = quote_ctx.get_plate_stock(plate_code=plate_code)
+
+        if ret_code == ft.RET_OK:
+            return ft.RET_OK, plate_stock
+        else:
+            print('return_code: ({}) {}'.format(ret_code, plate_stock))
+
+            return ft.RET_ERROR
+
+    @staticmethod
+    def get_plate_list(quote_ctx, code):
+        market = algo.Helper.get_market(code)
+
+        ret_code, plate_list = quote_ctx.get_plate_list(market=market, plate_class=ft.Plate.ALL)
+
+        if ret_code == ft.RET_OK:
+            return ft.RET_OK, plate_list
+        else:
+            print('return_code: ({}) {}'.format(ret_code, plate_list))
+
+            return ft.RET_ERROR
+
+    @staticmethod
+    def get_broker_queue(quote_ctx, code):
+        try:
+            quote_ctx.subscribe([code], [ft.SubType.BROKER])
+
+            ret_code, bid_broker_queue, ask_broker_queue = quote_ctx.get_broker_queue(code=code)
+
+            if ret_code == ft.RET_OK:
+                return ft.RET_OK, bid_broker_queue, ask_broker_queue
+            else:
+                print('return_code: ({}) {} / {}'.format(ret_code, bid_broker_queue, ask_broker_queue))
+
+                return ft.RET_ERROR
+        finally:
+            quote_ctx.unsubscribe([code], [ft.SubType.BROKER])
+
+    @staticmethod
     def query_subscription(quote_ctx):
         ret_code, subscription = quote_ctx.query_subscription(is_all_conn=True)
 
         if ret_code == ft.RET_OK:
             return ft.RET_OK, subscription
         else:
-            print('return_code: {}'.format(ret_code))
+            print('return_code: ({}) {}'.format(ret_code, subscription))
 
             return ft.RET_ERROR
 
@@ -24,7 +125,7 @@ class Quote(object):
         if ret_code == ft.RET_OK:
             return ft.RET_OK, global_state
         else:
-            print('return_code: {}'.format(ret_code))
+            print('return_code: ({}) {}'.format(ret_code, global_state))
 
             return ft.RET_ERROR
 
@@ -38,7 +139,7 @@ class Quote(object):
             if ret_code == ft.RET_OK:
                 return ft.RET_OK, stock_quote
             else:
-                print('return_code: {}'.format(ret_code))
+                print('return_code: ({}) {}'.format(ret_code, stock_quote))
 
                 return ft.RET_ERROR
         finally:
@@ -54,7 +155,7 @@ class Quote(object):
             if ret_code == ft.RET_OK:
                 return ft.RET_OK, rt_ticker
             else:
-                print('return_code: {}'.format(ret_code))
+                print('return_code: ({}) {}'.format(ret_code, rt_ticker))
 
                 return ft.RET_ERROR
         finally:
@@ -70,7 +171,7 @@ class Quote(object):
             if ret_code == ft.RET_OK:
                 return ft.RET_OK, order_book
             else:
-                print('return_code: {}'.format(ret_code))
+                print('return_code: ({}) {}'.format(ret_code, order_book))
 
                 return ft.RET_ERROR
         finally:
@@ -83,7 +184,7 @@ class Quote(object):
         if ret_code == ft.RET_OK:
             return ft.RET_OK, referencestock_list
         else:
-            print('return_code: {}'.format(ret_code))
+            print('return_code: ({}) {}'.format(ret_code, referencestock_list))
 
             return ft.RET_ERROR
 
@@ -94,7 +195,7 @@ class Quote(object):
         if ret_code == ft.RET_OK:
             return ft.RET_OK, owner_plate
         else:
-            print('return_code: {}'.format(ret_code))
+            print('return_code: ({}) {}'.format(ret_code, owner_plate))
 
             return ft.RET_ERROR
 
@@ -105,7 +206,7 @@ class Quote(object):
         if ret_code == ft.RET_OK:
             return ft.RET_OK, holding_change_list
         else:
-            print('return_code: {}'.format(ret_code))
+            print('return_code: ({}) {}'.format(ret_code, holding_change_list))
 
             return ft.RET_ERROR
 
@@ -116,7 +217,7 @@ class Quote(object):
         if ret_code == ft.RET_OK:
             return ft.RET_OK, option_chain
         else:
-            print('return_code: {}'.format(ret_code))
+            print('return_code: ({}) {}'.format(ret_code, option_chain))
 
             return ft.RET_ERROR
 
@@ -127,7 +228,7 @@ class Quote(object):
         if ret_code == ft.RET_OK:
             return ft.RET_OK, history_kl_quota
         else:
-            print('return_code: {}'.format(ret_code))
+            print('return_code: ({}) {}'.format(ret_code, history_kl_quota))
 
             return ft.RET_ERROR
 
@@ -138,7 +239,7 @@ class Quote(object):
         if ret_code == ft.RET_OK:
             return ft.RET_OK, rehab
         else:
-            print('return_code: {}'.format(ret_code))
+            print('return_code: ({}) {}'.format(ret_code, rehab))
 
             return ft.RET_ERROR
 
@@ -152,7 +253,7 @@ class Quote(object):
         if ret_code == ft.RET_OK:
             return ft.RET_OK, warrant
         else:
-            print('return_code: {}'.format(ret_code))
+            print('return_code: ({}) {}'.format(ret_code, warrant))
 
             return ft.RET_ERROR
 
@@ -163,7 +264,7 @@ class Quote(object):
         if ret_code == ft.RET_OK:
             return ft.RET_OK, capital_flow
         else:
-            print('return_code: {}'.format(ret_code))
+            print('return_code: ({}) {}'.format(ret_code, capital_flow))
 
             return ft.RET_ERROR
 
@@ -174,7 +275,7 @@ class Quote(object):
         if ret_code == ft.RET_OK:
             return ft.RET_OK, capital_distribution
         else:
-            print('return_code: {}'.format(ret_code))
+            print('return_code: ({}) {}'.format(ret_code, capital_distribution))
 
             return ft.RET_ERROR
 
@@ -213,7 +314,7 @@ class Quote(object):
 
                 return ft.RET_ERROR
         else:
-            print('return_code: {}'.format(ret_code))
+            print('return_code: ({}) {} / {}'.format(ret_code, klines, page_req_key))
 
             return ft.RET_ERROR
 

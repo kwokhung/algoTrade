@@ -42,3 +42,18 @@ class Helper(object):
             trade_ctx = us_trade_ctx
 
         return trade_ctx
+
+    @staticmethod
+    def get_market(code):
+        if 'HK.' in code:
+            market = ft.Market.HK
+        elif 'SH.' in code:
+            market = ft.Market.SH
+        elif 'SZ.' in code:
+            market = ft.Market.SZ
+        elif 'US.' in code:
+            market = ft.Market.US
+        else:
+            market = ft.Market.NONE
+
+        return market
