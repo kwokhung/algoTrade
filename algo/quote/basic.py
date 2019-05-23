@@ -297,7 +297,8 @@ class Quote(object):
                 ft.KL_FIELD.LOW,
                 ft.KL_FIELD.CLOSE,
                 ft.KL_FIELD.CHANGE_RATE,
-                ft.KL_FIELD.TRADE_VOL
+                ft.KL_FIELD.TRADE_VOL,
+                ft.KL_FIELD.LAST_CLOSE
                 # , ft.KL_FIELD. LAST_CLOSE, ft.KL_FIELD.TRADE_VAL, ft.KL_FIELD.TURNOVER_RATE
             ],
             max_count=60 * 24)
@@ -359,7 +360,7 @@ class Quote(object):
         if 'US.' in code:
             return Quote.get_last_price_worldtradingdata(code)
 
-        ret_code, market_snapshot = quote_ctx.get_market_snapshot([code])
+        ret_code, market_snapshot = Quote.get_market_snapshot(quote_ctx, code)
 
         if ret_code != ft.RET_OK:
             raise Exception('Failed to get snapshot')
@@ -390,3 +391,13 @@ class Quote(object):
 
         return last_price
 
+    @staticmethod
+    def get_prev_close_price(quote_ctx, code):
+        ret_code, market_snapshot = Quote.get_market_snapshot(quote_ctx, code)
+
+        if ret_code != ft.RET_OK:
+            raise Exception('Failed to get snapshot')
+
+        prev_close_price = market_snapshot['prev_close_price'][0]
+
+        return prev_close_price

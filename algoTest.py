@@ -6,6 +6,6 @@ print('Arguments ({}): {}'.format(len(sys.argv), str(sys.argv)))
 if __name__ == "__main__":
     algo_code = algo.Code()
 
-    algo_code.test()
+    algo_code.test_year()
 
     del algo_code

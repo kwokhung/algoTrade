@@ -33,6 +33,10 @@ class Code(object):
     qty_to_sell = 0
     force_to_liquidate = False
     strategy = ''
+    neg_to_liquidate = 0
+    pos_to_liquidate = 0
+    not_dare_to_buy = 0
+    not_dare_to_sell = 0
     my_observer = None
 
     def __init__(self):
@@ -108,6 +112,96 @@ class Code(object):
 
         print(self.codes)
 
+    def update_codes(self):
+        # print(algo.Quote.get_trading_days(self.quote_ctx, ft.Market.HK, None, None))
+        # print(algo.Quote.get_stock_basicinfo(self.quote_ctx, ft.Market.HK, ft.SecurityType.WARRANT, None))
+        # print(algo.Quote.get_autype_list(self.quote_ctx, self.code))
+        # print(algo.Quote.get_market_snapshot(self.quote_ctx, self.code))
+        # print(algo.Quote.get_rt_data(self.quote_ctx, self.code))
+        # print(algo.Quote.get_plate_stock(self.quote_ctx, 'HK.HSI Constituent'))
+        # print(algo.Quote.get_plate_list(self.quote_ctx, self.code))
+        # print(algo.Quote.get_broker_queue(self.quote_ctx, self.code))
+        # print(algo.Quote.query_subscription(self.quote_ctx))
+        # print(algo.Quote.get_global_state(self.quote_ctx))
+        # print(algo.Quote.get_stock_quote(self.quote_ctx, self.code))
+        # print(algo.Quote.get_rt_ticker(self.quote_ctx, self.code))
+        # print(algo.Quote.get_cur_kline(self.quote_ctx, self.code))
+        # print(algo.Quote.get_order_book(self.quote_ctx, self.code))
+        # print(algo.Quote.get_referencestock_list(self.quote_ctx, self.code))
+        # print(algo.Quote.get_owner_plate(self.quote_ctx, self.code))
+        # print(algo.Quote.get_holding_change_list(self.quote_ctx, self.code))
+        # print(algo.Quote.get_option_chain(self.quote_ctx, self.code))
+        # print(algo.Quote.get_history_kl_quota(self.quote_ctx))
+        # print(algo.Quote.get_rehab(self.quote_ctx, self.code))
+        # print(algo.Quote.get_warrant(self.quote_ctx, self.code))
+        # print(algo.Quote.get_capital_flow(self.quote_ctx, self.code))
+        # print(algo.Quote.get_capital_distribution(self.quote_ctx, self.code))
+
+        ret_code, plate_stock = algo.Quote.get_plate_stock(self.quote_ctx, 'HK.HSI Constituent')
+        # print(plate_stock)
+        # plate_stock.to_csv('C:/temp/result/plate_stock_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
+
+        code_list = plate_stock['code']
+        # print(code_list)
+        # code_list.to_csv('C:/temp/result/code_list_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=True)
+
+        for code in code_list:
+            # print(code)
+            # ret_code, referencestock_list = algo.Quote.get_referencestock_list(self.quote_ctx, code)
+            # print(referencestock_list)
+            # referencestock_list.to_csv('C:/temp/result/referencestock_list_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
+            ret_code, warrant = algo.Quote.get_warrant(self.quote_ctx, code)
+            # print(warrant)
+            # warrant[0].to_csv('C:/temp/result/warrant_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
+            favourables = warrant[0].loc[(warrant[0]['status'] == ft.WarrantStatus.NORMAL) & (warrant[0]['volume'] != 0) & (warrant[0]['price_change_val'] > 0)]
+            # print('favourables: {}'.format(len(favourables)))
+
+            if len(favourables) > 0:
+                # favourables.to_csv('C:/temp/result/favourables_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
+                favourables_max = favourables.loc[favourables['volume'].idxmax()]
+                # favourables_max.to_csv('C:/temp/result/favourables_max_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=False)
+                code_to_add = pd.DataFrame(columns=[
+                    'trade_env',
+                    'code',
+                    'start',
+                    'end',
+                    'qty_to_buy',
+                    'enable',
+                    'short_sell_enable',
+                    'qty_to_sell',
+                    'force_to_liquidate',
+                    'strategy',
+                    'neg_to_liquidate',
+                    'pos_to_liquidate',
+                    'not_dare_to_buy',
+                    'not_dare_to_sell'
+                ])
+                code_to_add = code_to_add.append({
+                    'trade_env': ft.TrdEnv.SIMULATE,
+                    'code': favourables_max['stock'],
+                    'start': 'today',
+                    'end': 'today',
+                    'qty_to_buy': favourables_max['lot_size'],
+                    'enable': 'yes',
+                    'short_sell_enable': 'no',
+                    'qty_to_sell': favourables_max['lot_size'],
+                    'force_to_liquidate': 'no',
+                    'strategy': 'G',
+                    'neg_to_liquidate': 8,
+                    'pos_to_liquidate': 8,
+                    'not_dare_to_buy': 8,
+                    'not_dare_to_sell': 8
+                }, ignore_index=True)
+
+                code_to_add.to_csv('C:/temp/code.csv'.format(code, time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=False, index=False, mode='a', line_terminator='')
+
+            time.sleep(3)
+
+        # self.codes = pd.read_csv('C:/temp/code.csv')
+        self.code_length = len(self.codes['code'])
+
+        print(self.codes)
+
     def roll_code(self):
         self.code_index = self.code_index + 1
 
@@ -148,6 +242,12 @@ class Code(object):
             self.force_to_liquidate = False
 
         self.strategy = self.codes['strategy'][self.code_index]
+
+        self.neg_to_liquidate = self.codes['neg_to_liquidate'][self.code_index]
+        self.pos_to_liquidate = self.codes['pos_to_liquidate'][self.code_index]
+
+        self.not_dare_to_buy = self.codes['not_dare_to_buy'][self.code_index]
+        self.not_dare_to_sell = self.codes['not_dare_to_sell'][self.code_index]
 
         self.print()
 
@@ -199,6 +299,7 @@ class Code(object):
                         if ret_code == ft.RET_OK:
                             time_key = np.array(klines['time_key'])
                             close = np.array(klines['close'])
+                            prev_close_price = klines['last_close'].iloc[0]
 
                             sma_1 = talib.SMA(close, self.sma_parameters[0])
                             sma_2 = talib.SMA(close, self.sma_parameters[1])
@@ -216,7 +317,17 @@ class Code(object):
                                                self.short_sell_enable,
                                                self.qty_to_sell,
                                                self.strategy,
-                                               time_key, close, macd, signal, sma_1, sma_2)
+                                               self.neg_to_liquidate,
+                                               self.pos_to_liquidate,
+                                               self.not_dare_to_buy,
+                                               self.not_dare_to_sell,
+                                               time_key,
+                                               close,
+                                               prev_close_price,
+                                               macd,
+                                               signal,
+                                               sma_1,
+                                               sma_2)
                 except TypeError:
                     print('get_kline failed')
 
@@ -227,34 +338,12 @@ class Code(object):
             code_index = code_index + 1
 
     def test(self):
-        print(algo.Quote.get_trading_days(self.quote_ctx, ft.Market.HK, None, None))
-        # print(algo.Quote.get_stock_basicinfo(self.quote_ctx, ft.Market.HK, ft.SecurityType.WARRANT, None))
-        # print(algo.Quote.get_autype_list(self.quote_ctx, self.code))
-        # print(algo.Quote.get_market_snapshot(self.quote_ctx, self.code))
-        # print(algo.Quote.get_rt_data(self.quote_ctx, self.code))
-        # print(algo.Quote.get_plate_stock(self.quote_ctx, 'HK.HSI Constituent'))
-        # print(algo.Quote.get_plate_list(self.quote_ctx, self.code))
-        # print(algo.Quote.get_broker_queue(self.quote_ctx, self.code))
-        # print(algo.Quote.query_subscription(self.quote_ctx))
-        # print(algo.Quote.get_global_state(self.quote_ctx))
-        # print(algo.Quote.get_stock_quote(self.quote_ctx, self.code))
-        # print(algo.Quote.get_rt_ticker(self.quote_ctx, self.code))
-        # print(algo.Quote.get_cur_kline(self.quote_ctx, self.code))
-        # print(algo.Quote.get_order_book(self.quote_ctx, self.code))
-        # print(algo.Quote.get_referencestock_list(self.quote_ctx, self.code))
-        # print(algo.Quote.get_owner_plate(self.quote_ctx, self.code))
-        # print(algo.Quote.get_holding_change_list(self.quote_ctx, self.code))
-        # print(algo.Quote.get_option_chain(self.quote_ctx, self.code))
-        # print(algo.Quote.get_history_kl_quota(self.quote_ctx))
-        # print(algo.Quote.get_rehab(self.quote_ctx, self.code))
-        # print(algo.Quote.get_warrant(self.quote_ctx, self.code))
-        # print(algo.Quote.get_capital_flow(self.quote_ctx, self.code))
-        # print(algo.Quote.get_capital_distribution(self.quote_ctx, self.code))
-
         code_index = 0
 
         # while code_index < self.code_length:
         while True:
+            # self.update_codes()
+
             print('Test: {}'.format(code_index))
 
             if self.enable:
@@ -268,6 +357,10 @@ class Code(object):
                                           self.code,
                                           self.short_sell_enable,
                                           self.strategy,
+                                          self.neg_to_liquidate,
+                                          self.pos_to_liquidate,
+                                          self.not_dare_to_buy,
+                                          self.not_dare_to_sell,
                                           klines,
                                           self.macd_parameters[0],
                                           self.macd_parameters[1],
@@ -285,7 +378,8 @@ class Code(object):
             code_index = code_index + 1
 
     def test_year(self):
-        start = '2019-04-01'
+        # start = '2019-04-01'
+        start = 'today'
 
         if start == 'today':
             start = time.strftime("%Y-%m-%d")
@@ -317,9 +411,14 @@ class Code(object):
                         ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, trade_day['time'], trade_day['time'])
 
                         if ret_code == ft.RET_OK:
-                            test_result = algo.Program.test(self.code,
+                            test_result = algo.Program.test(self.quote_ctx,
+                                                            self.trade_ctx,
+                                                            self.trade_env,
+                                                            self.code,
                                                             self.short_sell_enable,
                                                             self.strategy,
+                                                            self.neg_to_liquidate,
+                                                            self.pos_to_liquidate,
                                                             klines,
                                                             self.macd_parameters[0],
                                                             self.macd_parameters[1],
@@ -328,8 +427,8 @@ class Code(object):
                                                             self.sma_parameters[1],
                                                             self.sma_parameters[2])
 
-                            cumulated_p_l = test_result['cumulated p&l'].iloc[-1]
-                            code_column.loc[len(code_column)] = [cumulated_p_l]
+                            realized_p_l = test_result['realized p&l'].iloc[-1]
+                            code_column.loc[len(code_column)] = [realized_p_l]
                     except TypeError:
                         print('get_kline failed')
 
