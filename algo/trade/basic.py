@@ -1,8 +1,11 @@
 import algo
 import futu as ft
+import logging
 
 
 class Trade(object):
+
+    logger = logging.getLogger('algoTrade')
 
     @staticmethod
     def get_positions(trade_ctx, trade_env, code):
@@ -37,24 +40,7 @@ class Trade(object):
 
     @staticmethod
     def buy(trade_ctx, trade_env, code, qty, price):
-        """
-        ret_code, acc_info = trade_ctx.accinfo_query(trd_env=trade_env)
-
-        if ret_code != ft.RET_OK:
-            raise Exception('Failed to get accinfo')
-
-        ret_code, market_snapshot = quote_ctx.get_market_snapshot([code])
-
-        if ret_code != ft.RET_OK:
-            raise Exception('Failed to get snapshot')
-
-        lot_size = market_snapshot['lot_size'][0]
-        last_price = market_snapshot['last_price'][0]
-        power = acc_info['Power'][0]
-        qty = int(math.floor(power / last_price))
-        qty = qty // lot_size * lot_size
-        """
-        print('Buy {} {}@{}'.format(code, qty, price))
+        algo.Trade.logger.info('Buy: {}@{}'.format(qty, price))
 
         ret_code, order = trade_ctx.place_order(
             qty=qty,
@@ -71,7 +57,7 @@ class Trade(object):
 
     @staticmethod
     def sell(trade_ctx, trade_env, code, qty, price):
-        print('Sell {} {}@{}'.format(code, qty, price))
+        algo.Trade.logger.info('Sell: {}@{}'.format(qty, price))
 
         ret_code, order = trade_ctx.place_order(
             qty=qty,
@@ -95,6 +81,8 @@ class Trade(object):
             # print('{}. order_status = {}'.format(i, row['order_status']))
             # print('{}. code = {}'.format(i, row['code']))
             if row['code'] == code and (row['order_status'] == ft.OrderStatus.SUBMITTED or row['order_status'] == ft.OrderStatus.FILLED_PART):
+                algo.Trade.logger.info('Clear order: {}@{}'.format(row['qty'], row['price']))
+
                 ret_code, modify_order = trade_ctx.modify_order(
                     modify_order_op=ft.ModifyOrderOp.CANCEL,
                     order_id=row['order_id'],

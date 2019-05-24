@@ -8,6 +8,8 @@ import talib
 import algo
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
+import logging
+import logging.config
 
 
 class Code(object):
@@ -25,6 +27,8 @@ class Code(object):
     code_length = 0
     code_index = -1
     code = ''
+    name = ''
+    lot_size = 0
     start = ''
     end = ''
     qty_to_buy = 0
@@ -40,6 +44,10 @@ class Code(object):
     my_observer = None
 
     def __init__(self):
+        logging.config.fileConfig('C:/temp/log/logging.config')
+        logger = logging.getLogger('algoTrade')
+        logger.info('algoTrade init')
+
         self.get_config()
         self.quote_ctx, self.hk_trade_ctx, self.hkcc_trade_ctx, self.us_trade_ctx = algo.Helper.context_setting(self.api_svr_ip, self.api_svr_port, self.unlock_password)
 
@@ -153,16 +161,34 @@ class Code(object):
             ret_code, warrant = algo.Quote.get_warrant(self.quote_ctx, code)
             # print(warrant)
             # warrant[0].to_csv('C:/temp/result/warrant_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
-            favourables = warrant[0].loc[(warrant[0]['status'] == ft.WarrantStatus.NORMAL) & (warrant[0]['volume'] != 0) & (warrant[0]['price_change_val'] > 0)]
+            if warrant[0]['type'] == ft.WrtType.CALL or warrant[0]['type'] == ft.WrtType.PUT:
+                favourables = warrant[0].loc[(warrant[0]['status'] == ft.WarrantStatus.NORMAL) &
+                                             (warrant[0]['volume'] != 0) &
+                                             (warrant[0]['price_change_val'] > 0) &
+                                             (warrant[0]['effective_leverage'] >= 5) &
+                                             (warrant[0]['effective_leverage'] <= 10)]
+            else:
+                favourables = warrant[0].loc[(warrant[0]['status'] == ft.WarrantStatus.NORMAL) &
+                                             (warrant[0]['volume'] != 0) &
+                                             (warrant[0]['price_change_val'] > 0) &
+                                             (warrant[0]['leverage'] >= 5) &
+                                             (warrant[0]['leverage'] <= 10)]
             # print('favourables: {}'.format(len(favourables)))
 
             if len(favourables) > 0:
                 # favourables.to_csv('C:/temp/result/favourables_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
                 favourables_max = favourables.loc[favourables['volume'].idxmax()]
                 # favourables_max.to_csv('C:/temp/result/favourables_max_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=False)
+
+                amount_per_lot = favourables_max['cur_price'] * favourables_max['lot_size']
+                lot_for_trade = (1000 // amount_per_lot) + 1
+                leverage = favourables_max['effective_leverage'] if favourables_max['type'] == ft.WrtType.CALL or favourables_max['type'] == ft.WrtType.PUT else favourables_max['leverage']
+
                 code_to_add = pd.DataFrame(columns=[
                     'trade_env',
                     'code',
+                    'name',
+                    'lot_size',
                     'start',
                     'end',
                     'qty_to_buy',
@@ -176,21 +202,24 @@ class Code(object):
                     'not_dare_to_buy',
                     'not_dare_to_sell'
                 ])
+
                 code_to_add = code_to_add.append({
                     'trade_env': ft.TrdEnv.SIMULATE,
                     'code': favourables_max['stock'],
+                    'name': favourables_max['name'],
+                    'lot_size': favourables_max['lot_size'],
                     'start': 'today',
                     'end': 'today',
-                    'qty_to_buy': favourables_max['lot_size'],
+                    'qty_to_buy': lot_for_trade * favourables_max['lot_size'],
                     'enable': 'yes',
                     'short_sell_enable': 'no',
-                    'qty_to_sell': favourables_max['lot_size'],
+                    'qty_to_sell': lot_for_trade * favourables_max['lot_size'],
                     'force_to_liquidate': 'no',
                     'strategy': 'G',
-                    'neg_to_liquidate': 8,
-                    'pos_to_liquidate': 8,
-                    'not_dare_to_buy': 8,
-                    'not_dare_to_sell': 8
+                    'neg_to_liquidate': leverage,
+                    'pos_to_liquidate': leverage,
+                    'not_dare_to_buy': leverage,
+                    'not_dare_to_sell': leverage,
                 }, ignore_index=True)
 
                 code_to_add.to_csv('C:/temp/code.csv'.format(code, time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=False, index=False, mode='a', line_terminator='')
@@ -211,6 +240,8 @@ class Code(object):
         self.trade_env = self.codes['trade_env'][self.code_index]
 
         self.code = self.codes['code'][self.code_index]
+        self.name = self.codes['name'][self.code_index]
+        self.lot_size = self.codes['lot_size'][self.code_index]
 
         self.start = self.codes['start'][self.code_index]
 
@@ -419,6 +450,8 @@ class Code(object):
                                                             self.strategy,
                                                             self.neg_to_liquidate,
                                                             self.pos_to_liquidate,
+                                                            self.not_dare_to_buy,
+                                                            self.not_dare_to_sell,
                                                             klines,
                                                             self.macd_parameters[0],
                                                             self.macd_parameters[1],
