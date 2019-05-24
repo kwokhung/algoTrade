@@ -409,8 +409,8 @@ class Code(object):
             code_index = code_index + 1
 
     def test_year(self):
-        # start = '2019-04-01'
-        start = 'today'
+        start = '2019-05-01'
+        # start = 'today'
 
         if start == 'today':
             start = time.strftime("%Y-%m-%d")
