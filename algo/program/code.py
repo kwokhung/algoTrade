@@ -43,10 +43,13 @@ class Code(object):
     not_dare_to_sell = 0
     my_observer = None
 
+    logger = None
+    code_list = None
+
     def __init__(self):
         logging.config.fileConfig('C:/temp/log/logging.config')
-        logger = logging.getLogger('algoTrade')
-        logger.info('algoTrade init')
+        algo.Code.logger = logging.getLogger('algoTrade')
+        algo.Code.logger.info('algoTrade init')
 
         self.get_config()
         self.quote_ctx, self.hk_trade_ctx, self.hkcc_trade_ctx, self.us_trade_ctx = algo.Helper.context_setting(self.api_svr_ip, self.api_svr_port, self.unlock_password)
@@ -80,6 +83,14 @@ class Code(object):
         self.my_observer.schedule(self.my_event_handler, path='C:/temp/', recursive=True)
 
         self.my_observer.start()
+
+        ret_code, plate_stock = algo.Quote.get_plate_stock(self.quote_ctx, 'HK.HSI Constituent')
+        print(plate_stock)
+        plate_stock.to_csv('C:/temp/result/plate_stock_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
+
+        algo.Code.code_list = plate_stock['code']
+        print(algo.Code.code_list)
+        algo.Code.code_list.to_csv('C:/temp/result/code_list_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=True)
 
     def __del__(self):
         if self.quote_ctx is not None:
@@ -145,15 +156,7 @@ class Code(object):
         # print(algo.Quote.get_capital_flow(self.quote_ctx, self.code))
         # print(algo.Quote.get_capital_distribution(self.quote_ctx, self.code))
 
-        ret_code, plate_stock = algo.Quote.get_plate_stock(self.quote_ctx, 'HK.HSI Constituent')
-        # print(plate_stock)
-        # plate_stock.to_csv('C:/temp/result/plate_stock_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
-
-        code_list = plate_stock['code']
-        # print(code_list)
-        # code_list.to_csv('C:/temp/result/code_list_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=True)
-
-        for code in code_list:
+        for code in algo.Code.code_list:
             # print(code)
             # ret_code, referencestock_list = algo.Quote.get_referencestock_list(self.quote_ctx, code)
             # print(referencestock_list)
@@ -161,18 +164,13 @@ class Code(object):
             ret_code, warrant = algo.Quote.get_warrant(self.quote_ctx, code)
             # print(warrant)
             # warrant[0].to_csv('C:/temp/result/warrant_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
-            if warrant[0]['type'] == ft.WrtType.CALL or warrant[0]['type'] == ft.WrtType.PUT:
-                favourables = warrant[0].loc[(warrant[0]['status'] == ft.WarrantStatus.NORMAL) &
-                                             (warrant[0]['volume'] != 0) &
-                                             (warrant[0]['price_change_val'] > 0) &
-                                             (warrant[0]['effective_leverage'] >= 5) &
-                                             (warrant[0]['effective_leverage'] <= 10)]
-            else:
-                favourables = warrant[0].loc[(warrant[0]['status'] == ft.WarrantStatus.NORMAL) &
-                                             (warrant[0]['volume'] != 0) &
-                                             (warrant[0]['price_change_val'] > 0) &
-                                             (warrant[0]['leverage'] >= 5) &
-                                             (warrant[0]['leverage'] <= 10)]
+            favourables = warrant[0].loc[(warrant[0]['status'] == ft.WarrantStatus.NORMAL) &
+                                         (warrant[0]['volume'] != 0) &
+                                         (warrant[0]['price_change_val'] > 0) &
+                                         ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (warrant[0]['effective_leverage'] >= 5)) |
+                                          (((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & (warrant[0]['leverage'] >= 5))) &
+                                         ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (warrant[0]['effective_leverage'] <= 10)) |
+                                          (((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & (warrant[0]['leverage'] <= 10)))]
             # print('favourables: {}'.format(len(favourables)))
 
             if len(favourables) > 0:
@@ -320,6 +318,9 @@ class Code(object):
         while True:
             print('Trade: {}'.format(code_index))
 
+            if code_index == 0:
+                self.update_codes()
+
             if self.enable:
                 try:
                     if self.force_to_liquidate:
@@ -409,7 +410,7 @@ class Code(object):
             code_index = code_index + 1
 
     def test_year(self):
-        start = '2019-05-01'
+        start = '2019-05-24'
         # start = 'today'
 
         if start == 'today':
