@@ -7,6 +7,30 @@ import requests
 
 class Quote(object):
 
+    # print(algo.Quote.get_trading_days(self.quote_ctx, ft.Market.HK, None, None))
+    # print(algo.Quote.get_stock_basicinfo(self.quote_ctx, ft.Market.HK, ft.SecurityType.WARRANT, None))
+    # print(algo.Quote.get_autype_list(self.quote_ctx, self.code))
+    # print(algo.Quote.get_market_snapshot(self.quote_ctx, self.code))
+    # print(algo.Quote.get_rt_data(self.quote_ctx, self.code))
+    # print(algo.Quote.get_plate_stock(self.quote_ctx, 'HK.HSI Constituent'))
+    # print(algo.Quote.get_plate_list(self.quote_ctx, self.code))
+    # print(algo.Quote.get_broker_queue(self.quote_ctx, self.code))
+    # print(algo.Quote.query_subscription(self.quote_ctx))
+    # print(algo.Quote.get_global_state(self.quote_ctx))
+    # print(algo.Quote.get_stock_quote(self.quote_ctx, self.code))
+    # print(algo.Quote.get_rt_ticker(self.quote_ctx, self.code))
+    # print(algo.Quote.get_cur_kline(self.quote_ctx, self.code))
+    # print(algo.Quote.get_order_book(self.quote_ctx, self.code))
+    # print(algo.Quote.get_referencestock_list(self.quote_ctx, self.code))
+    # print(algo.Quote.get_owner_plate(self.quote_ctx, self.code))
+    # print(algo.Quote.get_holding_change_list(self.quote_ctx, self.code))
+    # print(algo.Quote.get_option_chain(self.quote_ctx, self.code))
+    # print(algo.Quote.get_history_kl_quota(self.quote_ctx))
+    # print(algo.Quote.get_rehab(self.quote_ctx, self.code))
+    # print(algo.Quote.get_warrant(self.quote_ctx, self.code))
+    # print(algo.Quote.get_capital_flow(self.quote_ctx, self.code))
+    # print(algo.Quote.get_capital_distribution(self.quote_ctx, self.code))
+
     @staticmethod
     def get_trading_days(quote_ctx, market, start, end):
         ret_code, trading_days = quote_ctx.get_trading_days(market=market, start=start, end=end)

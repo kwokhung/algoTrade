@@ -1,4 +1,5 @@
 import algo
+import futu as ft
 import time
 import datetime
 import numpy as np
@@ -108,14 +109,14 @@ class Program(object):
                     if close[i] < prev_close_price:
                         algo.Program.suggest_sell(quote_ctx, trade_ctx, trade_env, code, short_sell_enable, qty_to_sell)
                     else:
-                        algo.Program.logger.info('higher than last close: {}. @{} ({})'.format(i, close[i], prev_close_price))
+                        algo.Program.logger.info('not lower than last close: {}. @{} ({})'.format(i, close[i], prev_close_price))
                 else:
                     algo.Program.logger.info('cannot short sell')
             elif algo.Program.buy_signal_occur(i, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy, not_dare_to_buy):
                 if close[i] > prev_close_price:
                     algo.Program.suggest_buy(quote_ctx, trade_ctx, trade_env, code, qty_to_buy)
                 else:
-                    algo.Program.logger.info('lower than last close: {}. @{} ({})'.format(i, close[i], prev_close_price))
+                    algo.Program.logger.info('not higher than last close: {}. @{} ({})'.format(i, close[i], prev_close_price))
 
     @staticmethod
     def test(quote_ctx, trade_ctx, trade_env, code, short_sell_enable, strategy, neg_to_liquidate, pos_to_liquidate, not_dare_to_buy, not_dare_to_sell, klines, macd_parameter1, macd_parameter2, macd_parameter3, sma_parameter1, sma_parameter2, sma_parameter3):
@@ -167,7 +168,7 @@ class Program(object):
                             algo.Program.logger.info('Short sell {}. @{}'.format(i, close[i]))
                             action[i] = -1
                         else:
-                            algo.Program.logger.info('higher than last close: {}. @{} ({})'.format(i, close[i], prev_close_price))
+                            algo.Program.logger.info('not lower than last close: {}. @{} ({})'.format(i, close[i], prev_close_price))
 
                             action[i] = 0
                     else:
@@ -179,7 +180,7 @@ class Program(object):
                         algo.Program.logger.info('Buy {}. @{}'.format(i, close[i]))
                         action[i] = 1
                     else:
-                        algo.Program.logger.info('lower than last close: {}. @{} ({})'.format(i, close[i], prev_close_price))
+                        algo.Program.logger.info('not higher than last close: {}. @{} ({})'.format(i, close[i], prev_close_price))
 
                         action[i] = 0
                 else:
@@ -300,6 +301,16 @@ class Program(object):
             qty = 0
 
         return qty
+
+    @staticmethod
+    def order_exist(trade_ctx, trade_env, code):
+        ret_code, order_list = trade_ctx.order_list_query(trd_env=trade_env)
+
+        for i, row in order_list.iterrows():
+            if row['code'] == code and (row['order_status'] == ft.OrderStatus.SUBMITTED or row['order_status'] == ft.OrderStatus.FILLED_PART):
+                return True
+
+        return False
 
     @staticmethod
     def need_to_cut_loss(trade_ctx, trade_env, code, neg_to_liquidate):
