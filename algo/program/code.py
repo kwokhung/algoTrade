@@ -143,6 +143,8 @@ class Code(object):
             if False and updated_codes.loc[index, 'lot_size'] > 5000:
                 updated_codes = updated_codes.drop(index)
 
+        code_enabled = 0
+
         for index, row in updated_codes.iterrows():
             trade_ctx = algo.Helper.trade_context_setting(self.hk_trade_ctx,
                                                           self.hkcc_trade_ctx,
@@ -155,6 +157,8 @@ class Code(object):
                 algo.Code.logger.info('Enable code: {}'.format(row['code']))
 
                 updated_codes.loc[index, 'enable'] = 'yes'
+
+                code_enabled = code_enabled + 1
 
         updated_codes = updated_codes.reset_index(drop=True)
 
@@ -184,6 +188,8 @@ class Code(object):
                             algo.Code.logger.info('Enable code: {}'.format(favourables_max['stock']))
 
                             updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'enable'] = 'yes'
+
+                            code_enabled = code_enabled + 1
                     else:
                         algo.Code.logger.info('Add code: {}'.format(favourables_max['stock']))
 
@@ -210,7 +216,14 @@ class Code(object):
                             'not_dare_to_sell': leverage,
                         }, ignore_index=True)
 
+                        code_enabled = code_enabled + 1
+
                 time.sleep(3)
+
+                if code_enabled > 5:
+                    algo.Code.logger.info('Code enabled reached limits: {} > {}'.format(code_enabled, 5))
+
+                    break
             except TypeError:
                 print('get_warrant failed')
 
