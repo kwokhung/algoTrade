@@ -152,7 +152,7 @@ class Code(object):
                     not algo.Program.order_exist(trade_ctx, row['trade_env'], row['code']):
                 updated_codes.loc[index, 'enable'] = 'no'
             else:
-                algo.Code.logger.info('Enable code: {}'.format(row['code']))
+                algo.Code.logger.info('Enable code: {} ({})'.format(row['code'], row['name']))
 
                 updated_codes.loc[index, 'enable'] = 'yes'
 
@@ -187,13 +187,13 @@ class Code(object):
                         existed_code = updated_codes.loc[(updated_codes['code'] == favourables_max['stock']) & (updated_codes['enable'] == 'no')]
 
                         if len(existed_code) > 0:
-                            algo.Code.logger.info('Enable code: {}'.format(favourables_max['stock']))
+                            algo.Code.logger.info('Enable code: {} ({})'.format(favourables_max['stock'], favourables_max['name']))
 
                             updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'enable'] = 'yes'
 
                             code_enabled = code_enabled + 1
                     else:
-                        algo.Code.logger.info('Add code: {}'.format(favourables_max['stock']))
+                        algo.Code.logger.info('Add code: {} ({})'.format(favourables_max['stock'], favourables_max['name']))
 
                         amount_per_lot = favourables_max['cur_price'] * favourables_max['lot_size']
                         lot_for_trade = (5000 // amount_per_lot) + 1
