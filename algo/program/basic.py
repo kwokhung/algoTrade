@@ -95,6 +95,10 @@ class Program(object):
             algo.Program.logger.info('not tradable')
             return
 
+        if algo.Program.order_exist(trade_ctx, trade_env, code):
+            algo.Program.logger.info('Clear Order')
+            algo.Trade.clear_order(trade_ctx, trade_env, code)
+
         i = len(close) - 1
 
         if algo.Program.time_to_liquidate(code, time_key[i]):

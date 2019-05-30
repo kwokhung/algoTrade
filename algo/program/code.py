@@ -87,9 +87,9 @@ class Code(object):
         print(plate_stock)
         plate_stock.to_csv('C:/temp/result/plate_stock_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
 
-        algo.Code.code_list = plate_stock['code']
-        # algo.Code.code_list = pd.Series(['HK.02823', 'HK.00700'])
-        algo.Code.code_list = algo.Code.code_list.append(pd.Series(['HK.02823']), ignore_index=True)
+        # algo.Code.code_list = plate_stock['code']
+        algo.Code.code_list = pd.Series(['HK.00700', 'HK.02822', 'HK.03188'])
+        algo.Code.code_list = algo.Code.code_list.append(pd.Series(['HK.02800']), ignore_index=True)
         print(algo.Code.code_list)
         algo.Code.code_list.to_csv('C:/temp/result/code_list_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=True)
 
@@ -144,61 +144,75 @@ class Code(object):
                 updated_codes = updated_codes.drop(index)
 
         for index, row in updated_codes.iterrows():
-            if algo.Program.get_position(self.trade_ctx, self.trade_env, row['code']) == 0 and\
-                    not algo.Program.order_exist(self.trade_ctx, self.trade_env, row['code']):
+            trade_ctx = algo.Helper.trade_context_setting(self.hk_trade_ctx,
+                                                          self.hkcc_trade_ctx,
+                                                          self.us_trade_ctx,
+                                                          row['code'])
+            if algo.Program.get_position(trade_ctx, row['trade_env'], row['code']) == 0 and\
+                    not algo.Program.order_exist(trade_ctx, row['trade_env'], row['code']):
                 updated_codes.loc[index, 'enable'] = 'no'
+            else:
+                algo.Code.logger.info('Enable code: {}'.format(row['code']))
+
+                updated_codes.loc[index, 'enable'] = 'yes'
 
         updated_codes = updated_codes.reset_index(drop=True)
 
         for code in algo.Code.code_list:
-            ret_code, warrant = algo.Quote.get_warrant(self.quote_ctx, code)
-            # warrant[0].to_csv('C:/temp/result/warrant_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
+            try:
+                ret_code, warrant = algo.Quote.get_warrant(self.quote_ctx, code)
+                # warrant[0].to_csv('C:/temp/result/warrant_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
 
-            favourables = warrant[0].loc[(warrant[0]['status'] == ft.WarrantStatus.NORMAL) &
-                                         (warrant[0]['volume'] != 0) &
-                                         (warrant[0]['price_change_val'] > 0) &
-                                         ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (warrant[0]['effective_leverage'] >= 5)) |
-                                          (((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & (warrant[0]['leverage'] >= 5))) &
-                                         ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (warrant[0]['effective_leverage'] <= 10)) |
-                                          (((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & (warrant[0]['leverage'] <= 10)))]
+                favourables = warrant[0].loc[(warrant[0]['status'] == ft.WarrantStatus.NORMAL) &
+                                             (warrant[0]['volume'] != 0) &
+                                             (warrant[0]['price_change_val'] > 0) &
+                                             ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (warrant[0]['effective_leverage'] >= 5)) |
+                                              (((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & (warrant[0]['leverage'] >= 5))) &
+                                             ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (warrant[0]['effective_leverage'] <= 10)) |
+                                              (((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & (warrant[0]['leverage'] <= 10)))]
 
-            if len(favourables) > 0:
-                # favourables.to_csv('C:/temp/result/favourables_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
+                if len(favourables) > 0:
+                    # favourables.to_csv('C:/temp/result/favourables_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
 
-                favourables_max = favourables.loc[favourables['volume'].idxmax()]
-                # favourables_max.to_csv('C:/temp/result/favourables_max_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=False)
+                    favourables_max = favourables.loc[favourables['volume'].idxmax()]
+                    # favourables_max.to_csv('C:/temp/result/favourables_max_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=False)
 
-                if updated_codes['code'].str.contains(favourables_max['stock']).any():
-                    algo.Code.logger.info('Enable code: {}'.format(favourables_max['stock']))
+                    if updated_codes['code'].str.contains(favourables_max['stock']).any():
+                        existed_code = updated_codes.loc[(updated_codes['code'] == favourables_max['stock']) & (updated_codes['enable'] == 'no')]
 
-                    updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'enable'] = 'yes'
-                else:
-                    algo.Code.logger.info('Add code: {}'.format(favourables_max['stock']))
+                        if len(existed_code) > 0:
+                            algo.Code.logger.info('Enable code: {}'.format(favourables_max['stock']))
 
-                    amount_per_lot = favourables_max['cur_price'] * favourables_max['lot_size']
-                    lot_for_trade = (5000 // amount_per_lot) + 1
-                    leverage = favourables_max['effective_leverage'] if favourables_max['type'] == ft.WrtType.CALL or favourables_max['type'] == ft.WrtType.PUT else favourables_max['leverage']
+                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'enable'] = 'yes'
+                    else:
+                        algo.Code.logger.info('Add code: {}'.format(favourables_max['stock']))
 
-                    updated_codes = updated_codes.append({
-                        'trade_env': ft.TrdEnv.SIMULATE,
-                        'code': favourables_max['stock'],
-                        'name': favourables_max['name'],
-                        'lot_size': favourables_max['lot_size'],
-                        'start': 'today',
-                        'end': 'today',
-                        'qty_to_buy': lot_for_trade * favourables_max['lot_size'],
-                        'enable': 'yes',
-                        'short_sell_enable': 'no',
-                        'qty_to_sell': lot_for_trade * favourables_max['lot_size'],
-                        'force_to_liquidate': 'no',
-                        'strategy': 'G',
-                        'neg_to_liquidate': leverage,
-                        'pos_to_liquidate': leverage,
-                        'not_dare_to_buy': leverage,
-                        'not_dare_to_sell': leverage,
-                    }, ignore_index=True)
+                        amount_per_lot = favourables_max['cur_price'] * favourables_max['lot_size']
+                        lot_for_trade = (5000 // amount_per_lot) + 1
+                        leverage = favourables_max['effective_leverage'] if favourables_max['type'] == ft.WrtType.CALL or favourables_max['type'] == ft.WrtType.PUT else favourables_max['leverage']
 
-            time.sleep(3)
+                        updated_codes = updated_codes.append({
+                            'trade_env': ft.TrdEnv.REAL,
+                            'code': favourables_max['stock'],
+                            'name': favourables_max['name'],
+                            'lot_size': favourables_max['lot_size'],
+                            'start': 'today',
+                            'end': 'today',
+                            'qty_to_buy': lot_for_trade * favourables_max['lot_size'],
+                            'enable': 'yes',
+                            'short_sell_enable': 'no',
+                            'qty_to_sell': lot_for_trade * favourables_max['lot_size'],
+                            'force_to_liquidate': 'no',
+                            'strategy': 'G',
+                            'neg_to_liquidate': leverage,
+                            'pos_to_liquidate': leverage,
+                            'not_dare_to_buy': leverage,
+                            'not_dare_to_sell': leverage,
+                        }, ignore_index=True)
+
+                time.sleep(3)
+            except TypeError:
+                print('get_warrant failed')
 
         updated_codes.to_csv('C:/temp/code.csv', float_format='%f', index=False)
 
@@ -457,7 +471,7 @@ class Code(object):
             code_index = code_index + 1
 
     def test_year(self):
-        # start = '2019-01-01'
+        # start = '2019-05-01'
         start = 'today'
 
         if start == 'today':

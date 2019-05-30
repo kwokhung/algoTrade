@@ -94,7 +94,7 @@ class Trade(object):
 
     @staticmethod
     def check_tradable(quote_ctx, trade_ctx, trade_env, code):
-        if trade_env == ft.TrdEnv.REAL:
+        if False and trade_env == ft.TrdEnv.REAL:
             return False
 
         ret_code, global_states = quote_ctx.get_global_state()
