@@ -87,9 +87,7 @@ class Code(object):
         print(plate_stock)
         plate_stock.to_csv('C:/temp/result/plate_stock_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
 
-        # algo.Code.code_list = plate_stock['code']
-        algo.Code.code_list = pd.Series(['HK.00700', 'HK.02822', 'HK.03188'])
-        algo.Code.code_list = algo.Code.code_list.append(pd.Series(['HK.02800']), ignore_index=True)
+        algo.Code.code_list = plate_stock['code']
         print(algo.Code.code_list)
         algo.Code.code_list.to_csv('C:/temp/result/code_list_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=True)
 
@@ -162,7 +160,11 @@ class Code(object):
 
         updated_codes = updated_codes.reset_index(drop=True)
 
-        for code in algo.Code.code_list:
+        code_list = pd.Series(['HK.02800', 'HK.02822', 'HK.03188'])
+        code_list = code_list.append(algo.Code.code_list.sample(n=len(algo.Code.code_list), replace=False), ignore_index=True)
+        # print(code_list)
+
+        for code in code_list:
             try:
                 ret_code, warrant = algo.Quote.get_warrant(self.quote_ctx, code)
                 # warrant[0].to_csv('C:/temp/result/warrant_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
@@ -220,8 +222,8 @@ class Code(object):
 
                 time.sleep(3)
 
-                if code_enabled > 5:
-                    algo.Code.logger.info('Code enabled reached limits: {} > {}'.format(code_enabled, 5))
+                if code_enabled >= 5:
+                    algo.Code.logger.info('Code enabled reached limits: {} >= {}'.format(code_enabled, 5))
 
                     break
             except TypeError:
