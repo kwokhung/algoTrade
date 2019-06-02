@@ -196,7 +196,7 @@ class Code(object):
                         algo.Code.logger.info('Add code: {} ({})'.format(favourables_max['stock'], favourables_max['name']))
 
                         amount_per_lot = favourables_max['cur_price'] * favourables_max['lot_size']
-                        lot_for_trade = (5000 // amount_per_lot) + 1
+                        lot_for_trade = (2000 // amount_per_lot) + 1
                         leverage = favourables_max['effective_leverage'] if favourables_max['type'] == ft.WrtType.CALL or favourables_max['type'] == ft.WrtType.PUT else favourables_max['leverage']
 
                         updated_codes = updated_codes.append({
@@ -212,8 +212,8 @@ class Code(object):
                             'qty_to_sell': lot_for_trade * favourables_max['lot_size'],
                             'force_to_liquidate': 'no',
                             'strategy': 'G',
-                            'neg_to_liquidate': leverage,
-                            'pos_to_liquidate': leverage,
+                            'neg_to_liquidate': leverage * 0.8,
+                            'pos_to_liquidate': leverage * 0.8,
                             'not_dare_to_buy': leverage,
                             'not_dare_to_sell': leverage,
                         }, ignore_index=True)
@@ -222,8 +222,10 @@ class Code(object):
 
                 time.sleep(3)
 
-                if code_enabled >= 5:
-                    algo.Code.logger.info('Code enabled reached limits: {} >= {}'.format(code_enabled, 5))
+                code_limit = 10
+
+                if code_enabled >= code_limit:
+                    algo.Code.logger.info('Code enabled reached limits: {} >= {}'.format(code_enabled, code_limit))
 
                     break
             except TypeError:
@@ -486,8 +488,8 @@ class Code(object):
             code_index = code_index + 1
 
     def test_year(self):
-        # start = '2019-05-01'
-        start = 'today'
+        start = '2019-05-31'
+        # start = 'today'
 
         if start == 'today':
             start = time.strftime("%Y-%m-%d")
@@ -512,7 +514,7 @@ class Code(object):
             print('Test: {}'.format(code_index))
 
             if self.enable:
-                code_column = pd.DataFrame(columns=[self.code])
+                code_column = pd.DataFrame(columns=['{} ({})'.format(self.code, self.name)])
 
                 for trade_day in trade_days[1]:
                     try:

@@ -104,10 +104,10 @@ class Program(object):
         if algo.Program.time_to_liquidate(code, time_key[i]):
             algo.Program.force_to_liquidate(quote_ctx, trade_ctx, trade_env, code)
         elif algo.Program.get_position(trade_ctx, trade_env, code) != 0:
-            if algo.Program.need_to_cut_loss(trade_ctx, trade_env, code, neg_to_liquidate) or \
+            if algo.Program.need_to_cut_loss(trade_ctx, trade_env, code, neg_to_liquidate, close(i), prev_close_price) or \
                     algo.Program.need_to_cut_profit(trade_ctx, trade_env, code, pos_to_liquidate):
                 algo.Program.force_to_liquidate(quote_ctx, trade_ctx, trade_env, code)
-        else:
+        elif not algo.Program.time_to_stop_trade(code, time_key[i]):
             if algo.Program.sell_signal_occur(i, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy, not_dare_to_sell):
                 if short_sell_enable:
                     if close[i] < prev_close_price:
@@ -155,7 +155,9 @@ class Program(object):
                 else:
                     action[i] = 0
             elif position[i - 1] != 0:
-                if (cumulated_p_l[i - 1] * 100 < -neg_to_liquidate) or \
+                if (position[i - 1] > 0 and close[i] < prev_close_price and cumulated_p_l[i - 1] * 100 < -(neg_to_liquidate * 5 / 8)) or \
+                        (position[i - 1] < 0 and close[i] > prev_close_price and cumulated_p_l[i - 1] * 100 < -(neg_to_liquidate * 5 / 8)) or\
+                        (cumulated_p_l[i - 1] * 100 < -neg_to_liquidate) or \
                         (cumulated_p_l[i - 1] * 100 > pos_to_liquidate):
                     if position[i - 1] > 0:
                         algo.Program.logger.info('Force sell {}. @{}'.format(i, close[i]))
@@ -165,7 +167,7 @@ class Program(object):
                         action[i] = 1
                     else:
                         action[i] = 0
-            else:
+            elif not algo.Program.time_to_stop_trade(code, time_key[i]):
                 if algo.Program.sell_signal_occur(i, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy, not_dare_to_sell):
                     if short_sell_enable:
                         if close[i] < prev_close_price:
@@ -189,6 +191,8 @@ class Program(object):
                         action[i] = 0
                 else:
                     action[i] = 0
+            else:
+                action[i] = 0
 
             change_rate[i] = (close[i] / close[i - 1]) - 1 if close[i - 1] != 0 else 0
             position[i] = position[i - 1] + action[i]
@@ -294,6 +298,26 @@ class Program(object):
         return False
 
     @staticmethod
+    def time_to_stop_trade(code, time_key):
+        date_time = datetime.datetime.strptime(time_key, '%Y-%m-%d %H:%M:%S')
+
+        if 'HK.' in code:
+            stop_trade_time = datetime.time(15, 15, 0)
+        elif 'SH.' in code:
+            stop_trade_time = datetime.time(14, 15, 0)
+        elif 'SZ.' in code:
+            stop_trade_time = datetime.time(14, 15, 0)
+        elif 'US.' in code:
+            stop_trade_time = datetime.time(15, 15, 0)
+
+        if ('HK.' in code or 'SH.' in code or 'SZ.' in code or 'US.' in code) and date_time.time() >= stop_trade_time:
+            algo.Program.logger.info('Time to stop trade: {}'.format(date_time))
+
+            return True
+
+        return False
+
+    @staticmethod
     def get_position(trade_ctx, trade_env, code):
         positions = algo.Trade.get_positions(trade_ctx, trade_env, code)
 
@@ -317,7 +341,7 @@ class Program(object):
         return False
 
     @staticmethod
-    def need_to_cut_loss(trade_ctx, trade_env, code, neg_to_liquidate):
+    def need_to_cut_loss(trade_ctx, trade_env, code, neg_to_liquidate, last_close, prev_close_price):
         positions = algo.Trade.get_positions(trade_ctx, trade_env, code)
 
         try:
@@ -330,7 +354,15 @@ class Program(object):
             qty = 0
             pl_ratio = 0.0
 
-        if qty != 0 and pl_ratio < -neg_to_liquidate:
+        if qty > 0 and last_close < prev_close_price and pl_ratio < -(neg_to_liquidate * 5 / 8):
+            algo.Program.logger.info('Need to cut loss quick after drop below previous close: {} < -{} ({})'.format(pl_ratio, (neg_to_liquidate * 5 / 8), code))
+
+            return True
+        elif qty < 0 and last_close > prev_close_price and pl_ratio < -(neg_to_liquidate * 5 / 8):
+            algo.Program.logger.info('Need to cut loss quick after rise above previous close: {} < -{} ({})'.format(pl_ratio, (neg_to_liquidate * 5 / 8), code))
+
+            return True
+        elif qty != 0 and pl_ratio < -neg_to_liquidate:
             algo.Program.logger.info('Need to cut loss: {} < -{} ({})'.format(pl_ratio, neg_to_liquidate, code))
 
             return True
