@@ -160,7 +160,8 @@ class Code(object):
 
         updated_codes = updated_codes.reset_index(drop=True)
 
-        code_list = pd.Series(['HK.02800', 'HK.02822', 'HK.03188'])
+        code_list = pd.Series(['HK.02800'])
+        # code_list = pd.Series(['HK.02800', 'HK.02822', 'HK.03188'])
         code_list = code_list.append(algo.Code.code_list.sample(n=len(algo.Code.code_list), replace=False), ignore_index=True)
         # print(code_list)
 
@@ -438,8 +439,8 @@ class Code(object):
                                                signal,
                                                sma_1,
                                                sma_2)
-                except TypeError:
-                    print('get_kline failed')
+                except TypeError as error:
+                    print('get_kline failed ({})'.format(error))
 
                 time.sleep(3)
 

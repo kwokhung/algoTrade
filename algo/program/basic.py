@@ -104,7 +104,7 @@ class Program(object):
         if algo.Program.time_to_liquidate(code, time_key[i]):
             algo.Program.force_to_liquidate(quote_ctx, trade_ctx, trade_env, code)
         elif algo.Program.get_position(trade_ctx, trade_env, code) != 0:
-            if algo.Program.need_to_cut_loss(trade_ctx, trade_env, code, neg_to_liquidate, close(i), prev_close_price) or \
+            if algo.Program.need_to_cut_loss(trade_ctx, trade_env, code, neg_to_liquidate, close[i], prev_close_price) or \
                     algo.Program.need_to_cut_profit(trade_ctx, trade_env, code, pos_to_liquidate):
                 algo.Program.force_to_liquidate(quote_ctx, trade_ctx, trade_env, code)
         elif not algo.Program.time_to_stop_trade(code, time_key[i]):
@@ -122,6 +122,8 @@ class Program(object):
                 else:
                     algo.Program.logger.info('not higher than last close: {}. @{} ({})'.format(i, close[i], prev_close_price))
 
+        # algo.Program.update_p_l(trade_ctx, trade_env, code)
+
     @staticmethod
     def test(quote_ctx, trade_ctx, trade_env, code, short_sell_enable, strategy, neg_to_liquidate, pos_to_liquidate, not_dare_to_buy, not_dare_to_sell, klines, macd_parameter1, macd_parameter2, macd_parameter3, sma_parameter1, sma_parameter2, sma_parameter3):
         algo.Program.logger.info('test for {}'.format(code))
@@ -136,6 +138,7 @@ class Program(object):
         position = close - close
         p_l = close - close
         cumulated_p_l = close - close
+        highest_p_l = close - close
         realized_p_l = close - close
 
         sma_1 = talib.SMA(close, sma_parameter1)
@@ -158,6 +161,7 @@ class Program(object):
                 if (position[i - 1] > 0 and close[i] < prev_close_price and cumulated_p_l[i - 1] * 100 < -(neg_to_liquidate * 5 / 8)) or \
                         (position[i - 1] < 0 and close[i] > prev_close_price and cumulated_p_l[i - 1] * 100 < -(neg_to_liquidate * 5 / 8)) or\
                         (cumulated_p_l[i - 1] * 100 < -neg_to_liquidate) or \
+                        (highest_p_l[i - 1] * 100 > (pos_to_liquidate * 4 / 8) and cumulated_p_l[i - 1] * 100 < (pos_to_liquidate * 1 / 8)) or\
                         (cumulated_p_l[i - 1] * 100 > pos_to_liquidate):
                     if position[i - 1] > 0:
                         algo.Program.logger.info('Force sell {}. @{}'.format(i, close[i]))
@@ -198,17 +202,24 @@ class Program(object):
             position[i] = position[i - 1] + action[i]
             p_l[i] = position[i - 1] * change_rate[i]
             cumulated_p_l[i] = cumulated_p_l[i - 1] + p_l[i]
+
+            if cumulated_p_l[i] > highest_p_l[i - 1]:
+                highest_p_l[i] = cumulated_p_l[i]
+            else:
+                highest_p_l[i] = highest_p_l[i - 1]
+
             realized_p_l[i] = realized_p_l[i - 1]
 
             if position[i] == 0 and cumulated_p_l[i] != 0:
                 realized_p_l[i] = realized_p_l[i] + cumulated_p_l[i]
                 cumulated_p_l[i] = 0
+                highest_p_l[i] = 0
 
         test_result = pd.DataFrame({'code': np.array(klines['code']), 'time_key': time_key,
                                     'close': close, 'change_rate': change_rate, 'macd': macd,
                                     'signal': signal, 'hist': hist, 'sma_1': sma_1,
                                     'sma_2': sma_2, 'sma_3': sma_3, 'action': action, 'position': position, 'p&l': p_l,
-                                    'cumulated p&l': cumulated_p_l, 'realized p&l': realized_p_l})
+                                    'cumulated p&l': cumulated_p_l, 'highest p&l': highest_p_l, 'realized p&l': realized_p_l})
         print(test_result.tail(1))
         test_result.to_csv('C:/temp/result/{}_result_{}.csv'.format(code, time.strftime("%Y%m%d%H%M%S")), float_format='%f')
 
@@ -389,6 +400,49 @@ class Program(object):
             return True
 
         return False
+
+    @staticmethod
+    def update_p_l(trade_ctx, trade_env, code):
+        positions = algo.Trade.get_positions(trade_ctx, trade_env, code)
+
+        try:
+            qty = int(positions['qty'])
+            pl_ratio = float(positions['pl_ratio'])
+        except TypeError:
+            qty = 0
+            pl_ratio = 0.0
+        except KeyError:
+            qty = 0
+            pl_ratio = 0.0
+
+        if qty == 0:
+            return
+
+        highest_p_l = pd.read_csv('C:/temp/highestPL.csv')
+
+        prev_highest_p_l = highest_p_l.loc[highest_p_l['code'] == code, 'highest p&l']
+
+        if len(prev_highest_p_l) > 0:
+            if pl_ratio > prev_highest_p_l[0]:
+                new_highest_p_l = pl_ratio
+            else:
+                new_highest_p_l = prev_highest_p_l[0]
+
+            if qty == 0:
+                new_highest_p_l = 0
+
+            highest_p_l.loc[highest_p_l['code'] == code, 'highest p&l'] = new_highest_p_l
+        else:
+            new_highest_p_l = pl_ratio
+
+            highest_p_l = highest_p_l.append({
+                'code': code,
+                'highest p&l': new_highest_p_l,
+            }, ignore_index=True)
+
+        highest_p_l.to_csv('C:/temp/highestPL.csv', float_format='%f', index=False)
+
+        print(highest_p_l)
 
     @staticmethod
     def buy_signal_occur(i, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy, not_dare_to_buy):
