@@ -122,7 +122,7 @@ class Program(object):
                 else:
                     algo.Program.logger.info('not higher than last close: {}. @{} ({})'.format(i, close[i], prev_close_price))
 
-        # algo.Program.update_p_l(trade_ctx, trade_env, code)
+        algo.Program.update_p_l(trade_ctx, trade_env, code)
 
     @staticmethod
     def test(quote_ctx, trade_ctx, trade_env, code, short_sell_enable, strategy, neg_to_liquidate, pos_to_liquidate, not_dare_to_buy, not_dare_to_sell, klines, macd_parameter1, macd_parameter2, macd_parameter3, sma_parameter1, sma_parameter2, sma_parameter3):
@@ -394,7 +394,13 @@ class Program(object):
             qty = 0
             pl_ratio = 0.0
 
-        if qty != 0 and pl_ratio > pos_to_liquidate:
+        highest_p_l = algo.Program.get_highest_p_l(code)
+
+        if qty != 0 and highest_p_l > (pos_to_liquidate * 4 / 8) and pl_ratio < (pos_to_liquidate * 1 / 8):
+            algo.Program.logger.info('Need to retain profit quick after drop from highest profit: {} < {} < {} < {} ({})'.format(pl_ratio, (pos_to_liquidate * 1 / 8), (pos_to_liquidate * 4 / 8), highest_p_l, code))
+
+            return True
+        elif qty != 0 and pl_ratio > pos_to_liquidate:
             algo.Program.logger.info('Need to cut profit: {} > {} ({})'.format(pl_ratio, pos_to_liquidate, code))
 
             return True
@@ -415,34 +421,58 @@ class Program(object):
             qty = 0
             pl_ratio = 0.0
 
-        if qty == 0:
-            return
+        try:
+            highest_p_l = pd.read_csv('C:/temp/highestPL.csv')
 
-        highest_p_l = pd.read_csv('C:/temp/highestPL.csv')
+            prev_highest_p_l = highest_p_l.loc[highest_p_l['code'] == code, 'highest p&l']
 
-        prev_highest_p_l = highest_p_l.loc[highest_p_l['code'] == code, 'highest p&l']
+            if len(prev_highest_p_l) > 0:
+                if pl_ratio > prev_highest_p_l.iloc[0]:
+                    new_highest_p_l = pl_ratio
+                else:
+                    new_highest_p_l = prev_highest_p_l.iloc[0]
 
-        if len(prev_highest_p_l) > 0:
-            if pl_ratio > prev_highest_p_l[0]:
-                new_highest_p_l = pl_ratio
+                if qty == 0:
+                    new_highest_p_l = 0
+
+                highest_p_l.loc[highest_p_l['code'] == code, 'highest p&l'] = new_highest_p_l
             else:
-                new_highest_p_l = prev_highest_p_l[0]
+                if pl_ratio > 0:
+                    new_highest_p_l = pl_ratio
+                else:
+                    new_highest_p_l = 0
 
-            if qty == 0:
-                new_highest_p_l = 0
+                if qty == 0:
+                    new_highest_p_l = 0
 
-            highest_p_l.loc[highest_p_l['code'] == code, 'highest p&l'] = new_highest_p_l
-        else:
-            new_highest_p_l = pl_ratio
+                highest_p_l = highest_p_l.append({
+                    'code': code,
+                    'highest p&l': new_highest_p_l,
+                }, ignore_index=True)
 
-            highest_p_l = highest_p_l.append({
-                'code': code,
-                'highest p&l': new_highest_p_l,
-            }, ignore_index=True)
+            highest_p_l.to_csv('C:/temp/highestPL.csv', float_format='%f', index=False)
 
-        highest_p_l.to_csv('C:/temp/highestPL.csv', float_format='%f', index=False)
+            print(highest_p_l)
+        except KeyError as error:
+            algo.Program.logger.info('update_p_l failed ({})'.format(error))
 
-        print(highest_p_l)
+    @staticmethod
+    def get_highest_p_l(code):
+        try:
+            highest_p_l = pd.read_csv('C:/temp/highestPL.csv')
+
+            prev_highest_p_l = highest_p_l.loc[highest_p_l['code'] == code, 'highest p&l']
+
+            new_highest_p_l = 0
+
+            if len(prev_highest_p_l) > 0:
+                new_highest_p_l = prev_highest_p_l.iloc[0]
+
+            print(new_highest_p_l)
+        except KeyError as error:
+            algo.Program.logger.info('new_highest_p_l failed ({})'.format(error))
+
+        return new_highest_p_l
 
     @staticmethod
     def buy_signal_occur(i, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy, not_dare_to_buy):
