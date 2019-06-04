@@ -161,7 +161,7 @@ class Program(object):
                 if (position[i - 1] > 0 and close[i] < prev_close_price and cumulated_p_l[i - 1] * 100 < -(neg_to_liquidate * 5 / 8)) or \
                         (position[i - 1] < 0 and close[i] > prev_close_price and cumulated_p_l[i - 1] * 100 < -(neg_to_liquidate * 5 / 8)) or\
                         (cumulated_p_l[i - 1] * 100 < -neg_to_liquidate) or \
-                        (highest_p_l[i - 1] * 100 > (pos_to_liquidate * 4 / 8) and cumulated_p_l[i - 1] * 100 < (pos_to_liquidate * 1 / 8)) or\
+                        (highest_p_l[i - 1] * 100 > (pos_to_liquidate * 4 / 8) and cumulated_p_l[i - 1] * 100 < (pos_to_liquidate * 3 / 8)) or\
                         (cumulated_p_l[i - 1] * 100 > pos_to_liquidate):
                     if position[i - 1] > 0:
                         algo.Program.logger.info('Force sell {}. @{}'.format(i, close[i]))
@@ -396,8 +396,8 @@ class Program(object):
 
         highest_p_l = algo.Program.get_highest_p_l(code)
 
-        if qty != 0 and highest_p_l > (pos_to_liquidate * 4 / 8) and pl_ratio < (pos_to_liquidate * 1 / 8):
-            algo.Program.logger.info('Need to retain profit quick after drop from highest profit: {} < {} < {} < {} ({})'.format(pl_ratio, (pos_to_liquidate * 1 / 8), (pos_to_liquidate * 4 / 8), highest_p_l, code))
+        if qty != 0 and highest_p_l > (pos_to_liquidate * 4 / 8) and pl_ratio < (pos_to_liquidate * 3 / 8):
+            algo.Program.logger.info('Need to retain profit quick after drop from highest profit: {} < {} < {} < {} ({})'.format(pl_ratio, (pos_to_liquidate * 3 / 8), (pos_to_liquidate * 4 / 8), highest_p_l, code))
 
             return True
         elif qty != 0 and pl_ratio > pos_to_liquidate:

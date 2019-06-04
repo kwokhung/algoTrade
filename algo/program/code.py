@@ -223,7 +223,7 @@ class Code(object):
 
                 time.sleep(3)
 
-                code_limit = 10
+                code_limit = 2
 
                 if code_enabled >= code_limit:
                     algo.Code.logger.info('Code enabled reached limits: {} >= {}'.format(code_enabled, code_limit))
