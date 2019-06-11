@@ -160,8 +160,8 @@ class Code(object):
 
         updated_codes = updated_codes.reset_index(drop=True)
 
-        code_list = pd.Series(['HK.02800'])
-        # code_list = pd.Series(['HK.02800', 'HK.02822', 'HK.03188'])
+        # code_list = pd.Series(['HK.02800'])
+        code_list = pd.Series(['HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
         code_list = code_list.append(algo.Code.code_list.sample(n=len(algo.Code.code_list), replace=False), ignore_index=True)
         # print(code_list)
 
@@ -197,7 +197,7 @@ class Code(object):
                         algo.Code.logger.info('Add code: {} ({})'.format(favourables_max['stock'], favourables_max['name']))
 
                         amount_per_lot = favourables_max['cur_price'] * favourables_max['lot_size']
-                        lot_for_trade = (2000 // amount_per_lot) + 1
+                        lot_for_trade = (5000 // amount_per_lot) + 1
                         leverage = favourables_max['effective_leverage'] if favourables_max['type'] == ft.WrtType.CALL or favourables_max['type'] == ft.WrtType.PUT else favourables_max['leverage']
 
                         updated_codes = updated_codes.append({
@@ -223,7 +223,7 @@ class Code(object):
 
                 time.sleep(3)
 
-                code_limit = 2
+                code_limit = 8
 
                 if code_enabled >= code_limit:
                     algo.Code.logger.info('Code enabled reached limits: {} >= {}'.format(code_enabled, code_limit))

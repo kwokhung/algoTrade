@@ -139,6 +139,7 @@ class Program(object):
         p_l = close - close
         cumulated_p_l = close - close
         highest_p_l = close - close
+        lowest_p_l = close - close
         realized_p_l = close - close
 
         sma_1 = talib.SMA(close, sma_parameter1)
@@ -162,6 +163,7 @@ class Program(object):
                         (position[i - 1] < 0 and close[i] > prev_close_price and cumulated_p_l[i - 1] * 100 < -(neg_to_liquidate * 5 / 8)) or\
                         (cumulated_p_l[i - 1] * 100 < -neg_to_liquidate) or \
                         (highest_p_l[i - 1] * 100 > (pos_to_liquidate * 4 / 8) and cumulated_p_l[i - 1] * 100 < (pos_to_liquidate * 3 / 8)) or\
+                        (False and cumulated_p_l[i - 1] * 100 < (highest_p_l[i - 1] * 100 * 0.5)) or\
                         (cumulated_p_l[i - 1] * 100 > pos_to_liquidate):
                     if position[i - 1] > 0:
                         algo.Program.logger.info('Force sell {}. @{}'.format(i, close[i]))
@@ -208,18 +210,24 @@ class Program(object):
             else:
                 highest_p_l[i] = highest_p_l[i - 1]
 
+            if cumulated_p_l[i] < lowest_p_l[i - 1]:
+                lowest_p_l[i] = cumulated_p_l[i]
+            else:
+                lowest_p_l[i] = lowest_p_l[i - 1]
+
             realized_p_l[i] = realized_p_l[i - 1]
 
             if position[i] == 0 and cumulated_p_l[i] != 0:
                 realized_p_l[i] = realized_p_l[i] + cumulated_p_l[i]
                 cumulated_p_l[i] = 0
                 highest_p_l[i] = 0
+                lowest_p_l[i] = 0
 
         test_result = pd.DataFrame({'code': np.array(klines['code']), 'time_key': time_key,
                                     'close': close, 'change_rate': change_rate, 'macd': macd,
                                     'signal': signal, 'hist': hist, 'sma_1': sma_1,
                                     'sma_2': sma_2, 'sma_3': sma_3, 'action': action, 'position': position, 'p&l': p_l,
-                                    'cumulated p&l': cumulated_p_l, 'highest p&l': highest_p_l, 'realized p&l': realized_p_l})
+                                    'cumulated p&l': cumulated_p_l, 'highest p&l': highest_p_l, 'lowest p&l': lowest_p_l, 'realized p&l': realized_p_l})
         print(test_result.tail(1))
         test_result.to_csv('C:/temp/result/{}_result_{}.csv'.format(code, time.strftime("%Y%m%d%H%M%S")), float_format='%f')
 
@@ -394,10 +402,14 @@ class Program(object):
             qty = 0
             pl_ratio = 0.0
 
-        highest_p_l = algo.Program.get_highest_p_l(code)
+        highest_p_l, lowest_p_l = algo.Program.get_p_l(code)
 
         if qty != 0 and highest_p_l > (pos_to_liquidate * 4 / 8) and pl_ratio < (pos_to_liquidate * 3 / 8):
             algo.Program.logger.info('Need to retain profit quick after drop from highest profit: {} < {} < {} < {} ({})'.format(pl_ratio, (pos_to_liquidate * 3 / 8), (pos_to_liquidate * 4 / 8), highest_p_l, code))
+
+            return True
+        elif False and qty != 0 and pl_ratio < (highest_p_l * 0.5):
+            algo.Program.logger.info('Need to retain profit quick after drop from highest profit: {} < {} < {} ({})'.format(pl_ratio, (highest_p_l * 0.5), highest_p_l, code))
 
             return True
         elif qty != 0 and pl_ratio > pos_to_liquidate:
@@ -422,9 +434,9 @@ class Program(object):
             pl_ratio = 0.0
 
         try:
-            highest_p_l = pd.read_csv('C:/temp/highestPL.csv')
+            p_l = pd.read_csv('C:/temp/pl.csv')
 
-            prev_highest_p_l = highest_p_l.loc[highest_p_l['code'] == code, 'highest p&l']
+            prev_highest_p_l = p_l.loc[p_l['code'] == code, 'highest p&l']
 
             if len(prev_highest_p_l) > 0:
                 if pl_ratio > prev_highest_p_l.iloc[0]:
@@ -435,7 +447,7 @@ class Program(object):
                 if qty == 0:
                     new_highest_p_l = 0
 
-                highest_p_l.loc[highest_p_l['code'] == code, 'highest p&l'] = new_highest_p_l
+                p_l.loc[p_l['code'] == code, 'highest p&l'] = new_highest_p_l
             else:
                 if pl_ratio > 0:
                     new_highest_p_l = pl_ratio
@@ -445,34 +457,63 @@ class Program(object):
                 if qty == 0:
                     new_highest_p_l = 0
 
-                highest_p_l = highest_p_l.append({
+                p_l = p_l.append({
                     'code': code,
                     'highest p&l': new_highest_p_l,
+                    'lowest p&l': 0
                 }, ignore_index=True)
 
-            highest_p_l.to_csv('C:/temp/highestPL.csv', float_format='%f', index=False)
+            prev_lowest_p_l = p_l.loc[p_l['code'] == code, 'lowest p&l']
 
-            print(highest_p_l)
+            if len(prev_lowest_p_l) > 0:
+                if pl_ratio < prev_lowest_p_l.iloc[0]:
+                    new_lowest_p_l = pl_ratio
+                else:
+                    new_lowest_p_l = prev_lowest_p_l.iloc[0]
+
+                if qty == 0:
+                    new_lowest_p_l = 0
+
+                p_l.loc[p_l['code'] == code, 'lowest p&l'] = new_lowest_p_l
+            else:
+                if pl_ratio < 0:
+                    new_lowest_p_l = pl_ratio
+                else:
+                    new_lowest_p_l = 0
+
+                if qty == 0:
+                    new_lowest_p_l = 0
+
+                p_l = p_l.append({
+                    'code': code,
+                    'highest p&l': 0,
+                    'lowest p&l': new_lowest_p_l
+                }, ignore_index=True)
+
+            p_l.to_csv('C:/temp/pl.csv', float_format='%f', index=False)
+
+            print(p_l)
         except KeyError as error:
             algo.Program.logger.info('update_p_l failed ({})'.format(error))
 
     @staticmethod
-    def get_highest_p_l(code):
+    def get_p_l(code):
         try:
-            highest_p_l = pd.read_csv('C:/temp/highestPL.csv')
+            p_l = pd.read_csv('C:/temp/pl.csv')
 
-            prev_highest_p_l = highest_p_l.loc[highest_p_l['code'] == code, 'highest p&l']
+            prev_highest_p_l = p_l.loc[p_l['code'] == code, 'highest p&l']
 
-            new_highest_p_l = 0
+            highest_p_l = prev_highest_p_l.iloc[0] if len(prev_highest_p_l) > 0 else 0
 
-            if len(prev_highest_p_l) > 0:
-                new_highest_p_l = prev_highest_p_l.iloc[0]
+            prev_lowest_p_l = p_l.loc[p_l['code'] == code, 'lowest p&l']
 
-            print(new_highest_p_l)
+            lowest_p_l = prev_lowest_p_l.iloc[0] if len(prev_lowest_p_l) > 0 else 0
+
+            algo.Program.logger.info('{} / {}'.format(highest_p_l, lowest_p_l))
         except KeyError as error:
-            algo.Program.logger.info('new_highest_p_l failed ({})'.format(error))
+            algo.Program.logger.info('get_p_l failed ({})'.format(error))
 
-        return new_highest_p_l
+        return highest_p_l, lowest_p_l
 
     @staticmethod
     def buy_signal_occur(i, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy, not_dare_to_buy):
