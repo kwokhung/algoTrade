@@ -21,6 +21,8 @@ class Code(object):
     amt_to_trade = 0
     leverage_ratio_min = 0
     leverage_ratio_max = 0
+    dare_factor = 0
+    liquidate_factor = 0
     quote_ctx = None
     hk_trade_ctx = None
     hkcc_trade_ctx = None
@@ -124,6 +126,8 @@ class Code(object):
         self.amt_to_trade = self.config['amt_to_trade'][0]
         self.leverage_ratio_min = self.config['leverage_ratio_min'][0]
         self.leverage_ratio_max = self.config['leverage_ratio_max'][0]
+        self.dare_factor = self.config['dare_factor'][0]
+        self.liquidate_factor = self.config['liquidate_factor'][0]
 
         print(self.config)
 
@@ -168,9 +172,9 @@ class Code(object):
 
         updated_codes = updated_codes.reset_index(drop=True)
 
-        code_list = pd.Series(['HK.800000'])
-        # code_list = pd.Series(['HK.800000', 'HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
-        # code_list = code_list.append(algo.Code.code_list.sample(n=len(algo.Code.code_list), replace=False), ignore_index=True)
+        # code_list = pd.Series(['HK.800000'])
+        code_list = pd.Series(['HK.800000', 'HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
+        code_list = code_list.append(algo.Code.code_list.sample(n=len(algo.Code.code_list), replace=False), ignore_index=True)
         # print(code_list)
 
         for code in code_list:
@@ -222,10 +226,11 @@ class Code(object):
                             'qty_to_sell': lot_for_trade * favourables_max['lot_size'],
                             'force_to_liquidate': 'no',
                             'strategy': 'G',
-                            'neg_to_liquidate': leverage * 0.8,
-                            'pos_to_liquidate': leverage * 0.8,
-                            'not_dare_to_buy': leverage,
-                            'not_dare_to_sell': leverage,
+                            'neg_to_liquidate': leverage * self.liquidate_factor,
+                            'pos_to_liquidate': leverage * self.liquidate_factor,
+                            'not_dare_to_buy': leverage * self.dare_factor,
+                            'not_dare_to_sell': leverage * self.dare_factor,
+                            'leverage': leverage
                         }, ignore_index=True)
 
                         code_enabled = code_enabled + 1
@@ -498,7 +503,7 @@ class Code(object):
             code_index = code_index + 1
 
     def test_year(self):
-        start = '2019-05-31'
+        start = '2019-06-10'
         # start = 'today'
 
         if start == 'today':
