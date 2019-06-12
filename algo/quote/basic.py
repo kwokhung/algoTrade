@@ -268,12 +268,12 @@ class Quote(object):
             return ft.RET_ERROR
 
     @staticmethod
-    def get_warrant(quote_ctx, code):
+    def get_warrant(quote_ctx, code, leverage_ratio_min, leverage_ratio_max):
         req = Request()
         req.sort_field = ft.SortField.VOLUME
         req.ascend = False
-        req.leverage_ratio_min = 5
-        req.leverage_ratio_max = 10
+        req.leverage_ratio_min = leverage_ratio_min
+        req.leverage_ratio_max = leverage_ratio_max
 
         ret_code, warrant = quote_ctx.get_warrant(stock_owner=code, req=req)
 

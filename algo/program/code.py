@@ -19,6 +19,8 @@ class Code(object):
     unlock_password = ''
     code_limit = 0
     amt_to_trade = 0
+    leverage_ratio_min = 0
+    leverage_ratio_max = 0
     quote_ctx = None
     hk_trade_ctx = None
     hkcc_trade_ctx = None
@@ -120,6 +122,8 @@ class Code(object):
         self.unlock_password = self.config['unlock_password'][0]
         self.code_limit = self.config['code_limit'][0]
         self.amt_to_trade = self.config['amt_to_trade'][0]
+        self.leverage_ratio_min = self.config['leverage_ratio_min'][0]
+        self.leverage_ratio_max = self.config['leverage_ratio_max'][0]
 
         print(self.config)
 
@@ -171,16 +175,16 @@ class Code(object):
 
         for code in code_list:
             try:
-                ret_code, warrant = algo.Quote.get_warrant(self.quote_ctx, code)
+                ret_code, warrant = algo.Quote.get_warrant(self.quote_ctx, code, self.leverage_ratio_min, self.leverage_ratio_max)
                 # warrant[0].to_csv('C:/temp/result/warrant_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
 
                 favourables = warrant[0].loc[(warrant[0]['status'] == ft.WarrantStatus.NORMAL) &
                                              (warrant[0]['volume'] != 0) &
                                              (warrant[0]['price_change_val'] > 0) &
-                                             ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (abs(warrant[0]['effective_leverage']) >= 5)) |
-                                              (((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & (warrant[0]['leverage'] >= 5))) &
-                                             ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (abs(warrant[0]['effective_leverage']) <= 10)) |
-                                              (((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & (warrant[0]['leverage'] <= 10)))]
+                                             ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (abs(warrant[0]['effective_leverage']) >= self.leverage_ratio_min)) |
+                                              (((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & (warrant[0]['leverage'] >= self.leverage_ratio_min))) &
+                                             ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (abs(warrant[0]['effective_leverage']) <= self.leverage_ratio_max)) |
+                                              (((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & (warrant[0]['leverage'] <= self.leverage_ratio_max)))]
 
                 if len(favourables) > 0:
                     # favourables.to_csv('C:/temp/result/favourables_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
