@@ -17,6 +17,8 @@ class Code(object):
     api_svr_ip = ''
     api_svr_port = 0
     unlock_password = ''
+    code_limit = 0
+    amt_to_trade = 0
     quote_ctx = None
     hk_trade_ctx = None
     hkcc_trade_ctx = None
@@ -116,6 +118,8 @@ class Code(object):
         self.api_svr_ip = self.config['api_svr_ip'][0]
         self.api_svr_port = int(self.config['api_svr_port'][0])
         self.unlock_password = self.config['unlock_password'][0]
+        self.code_limit = self.config['code_limit'][0]
+        self.amt_to_trade = self.config['amt_to_trade'][0]
 
         print(self.config)
 
@@ -160,9 +164,9 @@ class Code(object):
 
         updated_codes = updated_codes.reset_index(drop=True)
 
-        # code_list = pd.Series(['HK.02800'])
-        code_list = pd.Series(['HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
-        code_list = code_list.append(algo.Code.code_list.sample(n=len(algo.Code.code_list), replace=False), ignore_index=True)
+        code_list = pd.Series(['HK.800000'])
+        # code_list = pd.Series(['HK.800000', 'HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
+        # code_list = code_list.append(algo.Code.code_list.sample(n=len(algo.Code.code_list), replace=False), ignore_index=True)
         # print(code_list)
 
         for code in code_list:
@@ -173,9 +177,9 @@ class Code(object):
                 favourables = warrant[0].loc[(warrant[0]['status'] == ft.WarrantStatus.NORMAL) &
                                              (warrant[0]['volume'] != 0) &
                                              (warrant[0]['price_change_val'] > 0) &
-                                             ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (warrant[0]['effective_leverage'] >= 5)) |
+                                             ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (abs(warrant[0]['effective_leverage']) >= 5)) |
                                               (((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & (warrant[0]['leverage'] >= 5))) &
-                                             ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (warrant[0]['effective_leverage'] <= 10)) |
+                                             ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (abs(warrant[0]['effective_leverage']) <= 10)) |
                                               (((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & (warrant[0]['leverage'] <= 10)))]
 
                 if len(favourables) > 0:
@@ -197,8 +201,9 @@ class Code(object):
                         algo.Code.logger.info('Add code: {} ({})'.format(favourables_max['stock'], favourables_max['name']))
 
                         amount_per_lot = favourables_max['cur_price'] * favourables_max['lot_size']
-                        lot_for_trade = (5000 // amount_per_lot) + 1
+                        lot_for_trade = (self.amt_to_trade // amount_per_lot) + 1
                         leverage = favourables_max['effective_leverage'] if favourables_max['type'] == ft.WrtType.CALL or favourables_max['type'] == ft.WrtType.PUT else favourables_max['leverage']
+                        leverage = abs(leverage)
 
                         updated_codes = updated_codes.append({
                             'trade_env': ft.TrdEnv.REAL,
@@ -223,7 +228,7 @@ class Code(object):
 
                 time.sleep(3)
 
-                code_limit = 8
+                code_limit = self.code_limit
 
                 if code_enabled >= code_limit:
                     algo.Code.logger.info('Code enabled reached limits: {} >= {}'.format(code_enabled, code_limit))

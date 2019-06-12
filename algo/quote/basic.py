@@ -270,7 +270,10 @@ class Quote(object):
     @staticmethod
     def get_warrant(quote_ctx, code):
         req = Request()
-        req.sort_field = ft.SortField.TURNOVER
+        req.sort_field = ft.SortField.VOLUME
+        req.ascend = False
+        req.leverage_ratio_min = 5
+        req.leverage_ratio_max = 10
 
         ret_code, warrant = quote_ctx.get_warrant(stock_owner=code, req=req)
 
