@@ -65,8 +65,11 @@ class Quote(object):
             return ft.RET_ERROR
 
     @staticmethod
-    def get_market_snapshot(quote_ctx, code):
-        ret_code, market_snapshot = quote_ctx.get_market_snapshot(code_list=[code])
+    def get_market_snapshot(quote_ctx, code, code_list=None):
+        if code_list is None:
+            ret_code, market_snapshot = quote_ctx.get_market_snapshot(code_list=[code])
+        else:
+            ret_code, market_snapshot = quote_ctx.get_market_snapshot(code_list=code_list)
 
         if ret_code == ft.RET_OK:
             return ft.RET_OK, market_snapshot
@@ -235,8 +238,8 @@ class Quote(object):
             return ft.RET_ERROR
 
     @staticmethod
-    def get_option_chain(quote_ctx, code):
-        ret_code, option_chain = quote_ctx.get_option_chain(code=code, start=None, end=None, option_type=ft.OptionType.ALL, option_cond_type=ft.OptionCondType.ALL)
+    def get_option_chain(quote_ctx, code, start, end, option_type, option_cond_type):
+        ret_code, option_chain = quote_ctx.get_option_chain(code=code, start=start, end=end, option_type=option_type, option_cond_type=option_cond_type)
 
         if ret_code == ft.RET_OK:
             return ft.RET_OK, option_chain
@@ -308,7 +311,7 @@ class Quote(object):
 
     @staticmethod
     def get_kline(quote_ctx, code, start, end):
-        if 'US.' in code:
+        if False and 'US.' in code:
             return Quote.get_kline_worldtradingdata(code)
 
         ret_code, klines, page_req_key = quote_ctx.request_history_kline(

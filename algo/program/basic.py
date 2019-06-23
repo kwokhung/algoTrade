@@ -159,10 +159,10 @@ class Program(object):
                 else:
                     action[i] = 0
             elif position[i - 1] != 0:
-                if (position[i - 1] > 0 and close[i] < prev_close_price and cumulated_p_l[i - 1] * 100 < -(neg_to_liquidate * 5 / 8)) or \
-                        (position[i - 1] < 0 and close[i] > prev_close_price and cumulated_p_l[i - 1] * 100 < -(neg_to_liquidate * 5 / 8)) or\
+                if (position[i - 1] > 0 and close[i] < prev_close_price and cumulated_p_l[i - 1] * 100 < -(neg_to_liquidate * 0.5)) or \
+                        (position[i - 1] < 0 and close[i] > prev_close_price and cumulated_p_l[i - 1] * 100 < -(neg_to_liquidate * 0.5)) or\
                         (cumulated_p_l[i - 1] * 100 < -neg_to_liquidate) or \
-                        (highest_p_l[i - 1] * 100 > (pos_to_liquidate * 4 / 8) and cumulated_p_l[i - 1] * 100 < (pos_to_liquidate * 3 / 8)) or\
+                        (highest_p_l[i - 1] * 100 > (pos_to_liquidate * 0.5) and cumulated_p_l[i - 1] * 100 < (pos_to_liquidate * 0.5)) or\
                         (False and cumulated_p_l[i - 1] * 100 < (highest_p_l[i - 1] * 100 * 0.5)) or\
                         (cumulated_p_l[i - 1] * 100 > pos_to_liquidate):
                     if position[i - 1] > 0:
@@ -301,7 +301,7 @@ class Program(object):
         date_time = datetime.datetime.strptime(time_key, '%Y-%m-%d %H:%M:%S')
 
         if 'HK.' in code:
-            liquidation_time = datetime.time(15, 45, 0)
+            liquidation_time = datetime.time(15, 30, 0)
         elif 'SH.' in code:
             liquidation_time = datetime.time(14, 45, 0)
         elif 'SZ.' in code:
@@ -321,7 +321,7 @@ class Program(object):
         date_time = datetime.datetime.strptime(time_key, '%Y-%m-%d %H:%M:%S')
 
         if 'HK.' in code:
-            stop_trade_time = datetime.time(15, 15, 0)
+            stop_trade_time = datetime.time(15, 00, 0)
         elif 'SH.' in code:
             stop_trade_time = datetime.time(14, 15, 0)
         elif 'SZ.' in code:
@@ -373,12 +373,12 @@ class Program(object):
             qty = 0
             pl_ratio = 0.0
 
-        if qty > 0 and last_close < prev_close_price and pl_ratio < -(neg_to_liquidate * 5 / 8):
-            algo.Program.logger.info('Need to cut loss quick after drop below previous close: {} < -{} ({})'.format(pl_ratio, (neg_to_liquidate * 5 / 8), code))
+        if qty > 0 and last_close < prev_close_price and pl_ratio < -(neg_to_liquidate * 0.5):
+            algo.Program.logger.info('Need to cut loss quick after drop below previous close: {} < -{} ({})'.format(pl_ratio, (neg_to_liquidate * 0.5), code))
 
             return True
-        elif qty < 0 and last_close > prev_close_price and pl_ratio < -(neg_to_liquidate * 5 / 8):
-            algo.Program.logger.info('Need to cut loss quick after rise above previous close: {} < -{} ({})'.format(pl_ratio, (neg_to_liquidate * 5 / 8), code))
+        elif qty < 0 and last_close > prev_close_price and pl_ratio < -(neg_to_liquidate * 0.5):
+            algo.Program.logger.info('Need to cut loss quick after rise above previous close: {} < -{} ({})'.format(pl_ratio, (neg_to_liquidate * 0.5), code))
 
             return True
         elif qty != 0 and pl_ratio < -neg_to_liquidate:
@@ -404,8 +404,8 @@ class Program(object):
 
         highest_p_l, lowest_p_l = algo.Program.get_p_l(code)
 
-        if qty != 0 and highest_p_l > (pos_to_liquidate * 4 / 8) and pl_ratio < (pos_to_liquidate * 3 / 8):
-            algo.Program.logger.info('Need to retain profit quick after drop from highest profit: {} < {} < {} < {} ({})'.format(pl_ratio, (pos_to_liquidate * 3 / 8), (pos_to_liquidate * 4 / 8), highest_p_l, code))
+        if qty != 0 and highest_p_l > (pos_to_liquidate * 0.5) and pl_ratio < (pos_to_liquidate * 0.5):
+            algo.Program.logger.info('Need to retain profit quick after drop from highest profit: {} < {} < {} < {} ({})'.format(pl_ratio, (pos_to_liquidate * 0.5), (pos_to_liquidate * 0.5), highest_p_l, code))
 
             return True
         elif False and qty != 0 and pl_ratio < (highest_p_l * 0.5):
