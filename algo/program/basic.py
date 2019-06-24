@@ -89,17 +89,17 @@ class Program(object):
 
     @staticmethod
     def trade(quote_ctx, trade_ctx, trade_env, code, qty_to_buy, short_sell_enable, qty_to_sell, strategy, neg_to_liquidate, pos_to_liquidate, not_dare_to_buy, not_dare_to_sell, time_key, close, prev_close_price, macd, signal, sma_1, sma_2):
-        algo.Program.logger.info('trade for {}'.format(code))
+        i = len(close) - 1
+
+        algo.Program.logger.info('{} ({}): Trade for {}'.format(time_key[i], i, code))
 
         if not algo.Trade.check_tradable(quote_ctx, trade_ctx, trade_env, code):
-            algo.Program.logger.info('not tradable')
+            algo.Program.logger.info('{} ({}): Not Tradable'.format(time_key[i], i))
             return
 
         if algo.Program.order_exist(trade_ctx, trade_env, code):
-            algo.Program.logger.info('Clear Order')
+            algo.Program.logger.info('{} ({}): Clear Order'.format(time_key[i], i))
             algo.Trade.clear_order(trade_ctx, trade_env, code)
-
-        i = len(close) - 1
 
         if algo.Program.time_to_liquidate(code, time_key[i]):
             algo.Program.force_to_liquidate(quote_ctx, trade_ctx, trade_env, code, time_key[i])
@@ -113,20 +113,20 @@ class Program(object):
                     if close[i] < prev_close_price:
                         algo.Program.suggest_sell(quote_ctx, trade_ctx, trade_env, code, short_sell_enable, qty_to_sell, time_key[i])
                     else:
-                        algo.Program.logger.info('{}: not lower than last close: {}. @{} ({})'.format(time_key[i], i, close[i], prev_close_price))
+                        algo.Program.logger.info('{} ({}): Not lower than last close: @{} ({})'.format(time_key[i], i, close[i], prev_close_price))
                 else:
-                    algo.Program.logger.info('{}: cannot short sell {}'.format(time_key[i], i))
+                    algo.Program.logger.info('{} ({}): Cannot short sell'.format(time_key[i], i))
             elif algo.Program.buy_signal_occur(i, time_key, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy, not_dare_to_buy):
                 if close[i] > prev_close_price:
                     algo.Program.suggest_buy(quote_ctx, trade_ctx, trade_env, code, qty_to_buy, time_key[i])
                 else:
-                    algo.Program.logger.info('{}: not higher than last close: {}. @{} ({})'.format(time_key[i], i, close[i], prev_close_price))
+                    algo.Program.logger.info('{} ({}): Not higher than last close: @{} ({})'.format(time_key[i], i, close[i], prev_close_price))
 
         algo.Program.update_p_l(trade_ctx, trade_env, code)
 
     @staticmethod
     def test(quote_ctx, trade_ctx, trade_env, code, short_sell_enable, strategy, neg_to_liquidate, pos_to_liquidate, not_dare_to_buy, not_dare_to_sell, klines, macd_parameter1, macd_parameter2, macd_parameter3, sma_parameter1, sma_parameter2, sma_parameter3):
-        algo.Program.logger.info('test for {}'.format(code))
+        algo.Program.logger.info('Test for {}'.format(code))
 
         # prev_close_price = algo.Quote.get_prev_close_price(quote_ctx, code)
         prev_close_price = klines['last_close'].iloc[0]
@@ -151,10 +151,10 @@ class Program(object):
         for i in range(5, len(close)):
             if algo.Program.time_to_liquidate(code, time_key[i]):
                 if position[i - 1] > 0:
-                    algo.Program.logger.info('{}: Force sell {}. @{}'.format(time_key[i], i, close[i]))
+                    algo.Program.logger.info('{} ({}): Force sell: @{}'.format(time_key[i], i, close[i]))
                     action[i] = -1
                 elif position[i - 1] < 0:
-                    algo.Program.logger.info('{}: Force buy back {}. @{}'.format(time_key[i], i, close[i]))
+                    algo.Program.logger.info('{} ({}): Force buy back: @{}'.format(time_key[i], i, close[i]))
                     action[i] = 1
                 else:
                     action[i] = 0
@@ -165,11 +165,23 @@ class Program(object):
                         (highest_p_l[i - 1] * 100 > (pos_to_liquidate * 0.5) and cumulated_p_l[i - 1] * 100 < (pos_to_liquidate * 0.5)) or\
                         (False and cumulated_p_l[i - 1] * 100 < (highest_p_l[i - 1] * 100 * 0.5)) or\
                         (cumulated_p_l[i - 1] * 100 > pos_to_liquidate):
+                    if position[i - 1] > 0 and close[i] < prev_close_price and cumulated_p_l[i - 1] * 100 < -(neg_to_liquidate * 0.5):
+                        algo.Program.logger.info('{}: Need to cut loss quick after drop below previous close: {} < -{} ({})'.format(time_key[i], (cumulated_p_l[i - 1] * 100), (neg_to_liquidate * 0.5), code))
+                    if position[i - 1] < 0 and close[i] > prev_close_price and cumulated_p_l[i - 1] * 100 < -(neg_to_liquidate * 0.5):
+                        algo.Program.logger.info('{}: Need to cut loss quick after rise above previous close: {} < -{} ({})'.format(time_key[i], (cumulated_p_l[i - 1] * 100), (neg_to_liquidate * 0.5), code))
+                    if cumulated_p_l[i - 1] * 100 < -neg_to_liquidate:
+                        algo.Program.logger.info('{}: Need to cut loss: {} < -{} ({})'.format(time_key[i], (cumulated_p_l[i - 1] * 100), neg_to_liquidate, code))
+                    if highest_p_l[i - 1] * 100 > (pos_to_liquidate * 0.5) and cumulated_p_l[i - 1] * 100 < (pos_to_liquidate * 0.5):
+                        algo.Program.logger.info('{}: Need to retain profit quick after drop from highest profit: {} < {} < {} < {} ({})'.format(time_key[i], (cumulated_p_l[i - 1] * 100), (pos_to_liquidate * 0.5), (pos_to_liquidate * 0.5), (highest_p_l[i - 1] * 100), code))
+                    if False and cumulated_p_l[i - 1] * 100 < (highest_p_l[i - 1] * 100 * 0.5):
+                        algo.Program.logger.info('{}: Need to retain profit quick after drop from highest profit: {} < {} < {} ({})'.format(time_key[i], (cumulated_p_l[i - 1] * 100), (highest_p_l[i - 1] * 100 * 0.5), (highest_p_l[i - 1] * 100), code))
+                    if cumulated_p_l[i - 1] * 100 > pos_to_liquidate:
+                        algo.Program.logger.info('{}: Need to cut profit: {} > {} ({})'.format(time_key[i], (cumulated_p_l[i - 1] * 100), pos_to_liquidate, code))
                     if position[i - 1] > 0:
-                        algo.Program.logger.info('{}: Force sell {}. @{}'.format(time_key[i], i, close[i]))
+                        algo.Program.logger.info('{} ({}): Force sell: @{}'.format(time_key[i], i, close[i]))
                         action[i] = -1
                     elif position[i - 1] < 0:
-                        algo.Program.logger.info('{}: Force buy back {}. @{}'.format(time_key[i], i, close[i]))
+                        algo.Program.logger.info('{} ({}): Force buy back: @{}'.format(time_key[i], i, close[i]))
                         action[i] = 1
                     else:
                         action[i] = 0
@@ -177,22 +189,22 @@ class Program(object):
                 if algo.Program.sell_signal_occur(i, time_key, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy, not_dare_to_sell):
                     if short_sell_enable:
                         if close[i] < prev_close_price:
-                            algo.Program.logger.info('{}: Short sell {}. @{}'.format(time_key[i], i, close[i]))
+                            algo.Program.logger.info('{} ({}): Short sell: @{}'.format(time_key[i], i, close[i]))
                             action[i] = -1
                         else:
-                            algo.Program.logger.info('{}: not lower than last close: {}. @{} ({})'.format(time_key[i], i, close[i], prev_close_price))
+                            algo.Program.logger.info('{} ({}): Not lower than last close: @{} ({})'.format(time_key[i], i, close[i], prev_close_price))
 
                             action[i] = 0
                     else:
-                        algo.Program.logger.info('{}: cannot short sell {}'.format(time_key[i], i))
+                        algo.Program.logger.info('{} ({}): Cannot short sell'.format(time_key[i], i))
 
                         action[i] = 0
                 elif algo.Program.buy_signal_occur(i, time_key, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy, not_dare_to_buy):
                     if close[i] > prev_close_price:
-                        algo.Program.logger.info('{}: Buy {}. @{}'.format(time_key[i], i, close[i]))
+                        algo.Program.logger.info('{} ({}): Buy: @{}'.format(time_key[i], i, close[i]))
                         action[i] = 1
                     else:
-                        algo.Program.logger.info('{}: not higher than last close: {}. @{} ({})'.format(time_key[i], i, close[i], prev_close_price))
+                        algo.Program.logger.info('{} ({}): Not higher than last close: @{} ({})'.format(time_key[i], i, close[i], prev_close_price))
 
                         action[i] = 0
                 else:
@@ -228,69 +240,6 @@ class Program(object):
                                     'signal': signal, 'hist': hist, 'sma_1': sma_1,
                                     'sma_2': sma_2, 'sma_3': sma_3, 'action': action, 'position': position, 'p&l': p_l,
                                     'cumulated p&l': cumulated_p_l, 'highest p&l': highest_p_l, 'lowest p&l': lowest_p_l, 'realized p&l': realized_p_l})
-        print(test_result.tail(1))
-        test_result.to_csv('C:/temp/result/{}_result_{}.csv'.format(code, time.strftime("%Y%m%d%H%M%S")), float_format='%f')
-
-        return test_result
-
-    @staticmethod
-    def test_1(quote_ctx, trade_ctx, trade_env, code, short_sell_enable, strategy, klines, macd_parameter1, macd_parameter2, macd_parameter3, sma_parameter1, sma_parameter2, sma_parameter3):
-        time_key = np.array(klines['time_key'])
-        close = np.array(klines['close'])
-        change_rate = close - close
-        action = close - close
-        position = close - close
-        p_l = close - close
-        cumulated_p_l = close - close
-
-        sma_1 = talib.SMA(close, sma_parameter1)
-        sma_2 = talib.SMA(close, sma_parameter2)
-        sma_3 = talib.SMA(close, sma_parameter3)
-
-        macd, signal, hist = talib.MACD(close, macd_parameter1, macd_parameter2, macd_parameter3)
-
-        for i in range(macd_parameter2 + macd_parameter3 - 2, len(close)):
-            if algo.Program.time_to_liquidate(code, time_key[i]) or\
-                    (position[i - 1] != 0 and cumulated_p_l[i - 1] * 100 <= 0.5) or\
-                    (position[i - 1] != 0 and cumulated_p_l[i - 1] * 100 > 1.0):
-                if position[i - 1] > 0:
-                    action[i] = -1
-                elif position[i - 1] < 0:
-                    action[i] = 1
-                else:
-                    action[i] = 0
-            elif algo.Program.sell_signal_occur(i, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy):
-                if position[i - 1] > 0:
-                    action[i] = -1
-                elif position[i - 1] == 0 and short_sell_enable:
-                    action[i] = -1
-                else:
-                    action[i] = 0
-            elif algo.Program.buy_signal_occur(i, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy):
-                if position[i - 1] <= 0:
-                    action[i] = 1
-                else:
-                    action[i] = 0
-            else:
-                action[i] = 0
-
-            change_rate[i] = (close[i] / close[i - 1]) - 1 if close[i - 1] != 0 else 0
-            position[i] = position[i - 1] + action[i]
-            p_l[i] = position[i - 1] * change_rate[i]
-            cumulated_p_l[i] = cumulated_p_l[i - 1] + p_l[i]
-
-            # print('close({}): {}'.format(i, close[i]))
-            # print('change_rate({}): {}%'.format(i, change_rate[i]))
-            # print('action({}): {}'.format(i, action[i]))
-            # print('position({}): {}'.format(i, position[i]))
-            # print('p&l({}): {}%'.format(i, p_l[i] * 100))
-            # print('cumulated p&l({}): {}%'.format(i, cumulated_p_l[i] * 100))
-
-        test_result = pd.DataFrame({'code': np.array(klines['code']), 'time_key': time_key,
-                                    'close': close, 'change_rate': change_rate, 'macd': macd,
-                                    'signal': signal, 'hist': hist, 'sma_1': sma_1,
-                                    'sma_2': sma_2, 'sma_3': sma_3, 'action': action, 'position': position, 'p&l': p_l,
-                                    'cumulated p&l': cumulated_p_l})
         print(test_result.tail(1))
         test_result.to_csv('C:/temp/result/{}_result_{}.csv'.format(code, time.strftime("%Y%m%d%H%M%S")), float_format='%f')
 
@@ -547,7 +496,7 @@ class Program(object):
 
     @staticmethod
     def dare_to_buy(i, time_key, close, not_dare_to_buy):
-        algo.Program.logger.info('{}: buy_signal_occur: {}. @{}'.format(time_key[i], i, close[i]))
+        algo.Program.logger.info('{} ({}): Buy Signal occur: @{}'.format(time_key[i], i, close[i]))
 
         running = i - 1
 
@@ -556,7 +505,7 @@ class Program(object):
             change_rate_percentage = change_rate * 100
 
             if change_rate_percentage > not_dare_to_buy:
-                algo.Program.logger.info('{}: not dare_to_buy: {}. @ {} ({} > {})'.format(time_key[i], i, close[i], change_rate_percentage, not_dare_to_buy))
+                algo.Program.logger.info('{} ({}): Not dare to buy: @{} ({} > {})'.format(time_key[i], i, close[i], change_rate_percentage, not_dare_to_buy))
 
                 return False
 
@@ -625,7 +574,7 @@ class Program(object):
 
     @staticmethod
     def dare_to_sell(i, time_key, close, not_dare_to_sell):
-        algo.Program.logger.info('{}: sell_signal_occur: {}. @{}'.format(time_key[i], i, close[i]))
+        algo.Program.logger.info('{} ({}): Sell Signal occur: @{}'.format(time_key[i], i, close[i]))
 
         running = i - 1
 
@@ -634,7 +583,7 @@ class Program(object):
             change_rate_percentage = change_rate * 100
 
             if change_rate_percentage < -not_dare_to_sell:
-                algo.Program.logger.info('{}: not dare_to_sell: {}. @ {} ({} < -{})'.format(time_key[i], i, close[i], change_rate_percentage, not_dare_to_sell))
+                algo.Program.logger.info('{} ({}): Not dare to sell: @{} ({} < -{})'.format(time_key[i], i, close[i], change_rate_percentage, not_dare_to_sell))
 
                 return False
 

@@ -214,7 +214,7 @@ class Code(object):
                         leverage = abs(leverage)
 
                         updated_codes = updated_codes.append({
-                            'trade_env': ft.TrdEnv.REAL,
+                            'trade_env': ft.TrdEnv.SIMULATE,
                             'code': favourables_max['stock'],
                             'name': favourables_max['name'],
                             'lot_size': favourables_max['lot_size'],
@@ -285,76 +285,6 @@ class Code(object):
                 print(e)
 
         options_snapshot.to_csv('C:/temp/{}_options_snapshot.csv'.format('US.BABA'), float_format='%f')
-
-    def update_codes_old(self):
-        for code in algo.Code.code_list:
-            ret_code, warrant = algo.Quote.get_warrant(self.quote_ctx, code)
-            # warrant[0].to_csv('C:/temp/result/warrant_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
-
-            favourables = warrant[0].loc[(warrant[0]['status'] == ft.WarrantStatus.NORMAL) &
-                                         (warrant[0]['volume'] != 0) &
-                                         (warrant[0]['price_change_val'] > 0) &
-                                         ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (warrant[0]['effective_leverage'] >= 5)) |
-                                          (((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & (warrant[0]['leverage'] >= 5))) &
-                                         ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (warrant[0]['effective_leverage'] <= 10)) |
-                                          (((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & (warrant[0]['leverage'] <= 10)))]
-
-            if len(favourables) > 0:
-                # favourables.to_csv('C:/temp/result/favourables_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
-
-                favourables_max = favourables.loc[favourables['volume'].idxmax()]
-                # favourables_max.to_csv('C:/temp/result/favourables_max_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=False)
-
-                amount_per_lot = favourables_max['cur_price'] * favourables_max['lot_size']
-                lot_for_trade = (5000 // amount_per_lot) + 1
-                leverage = favourables_max['effective_leverage'] if favourables_max['type'] == ft.WrtType.CALL or favourables_max['type'] == ft.WrtType.PUT else favourables_max['leverage']
-
-                code_to_add = pd.DataFrame(columns=[
-                    'trade_env',
-                    'code',
-                    'name',
-                    'lot_size',
-                    'start',
-                    'end',
-                    'qty_to_buy',
-                    'enable',
-                    'short_sell_enable',
-                    'qty_to_sell',
-                    'force_to_liquidate',
-                    'strategy',
-                    'neg_to_liquidate',
-                    'pos_to_liquidate',
-                    'not_dare_to_buy',
-                    'not_dare_to_sell'
-                ])
-
-                code_to_add = code_to_add.append({
-                    'trade_env': ft.TrdEnv.SIMULATE,
-                    'code': favourables_max['stock'],
-                    'name': favourables_max['name'],
-                    'lot_size': favourables_max['lot_size'],
-                    'start': 'today',
-                    'end': 'today',
-                    'qty_to_buy': lot_for_trade * favourables_max['lot_size'],
-                    'enable': 'yes',
-                    'short_sell_enable': 'no',
-                    'qty_to_sell': lot_for_trade * favourables_max['lot_size'],
-                    'force_to_liquidate': 'no',
-                    'strategy': 'G',
-                    'neg_to_liquidate': leverage,
-                    'pos_to_liquidate': leverage,
-                    'not_dare_to_buy': leverage,
-                    'not_dare_to_sell': leverage,
-                }, ignore_index=True)
-
-                code_to_add.to_csv('C:/temp/code.csv'.format(code, time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=False, index=False, mode='a', line_terminator='')
-
-            time.sleep(3)
-
-        # self.codes = pd.read_csv('C:/temp/code.csv')
-        self.code_length = len(self.codes['code'])
-
-        print(self.codes)
 
     def roll_code(self):
         self.code_index = self.code_index + 1
