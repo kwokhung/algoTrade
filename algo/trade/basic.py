@@ -51,7 +51,7 @@ class Trade(object):
             trd_env=trade_env)
 
         if ret_code != ft.RET_OK:
-            print(order)
+            algo.Trade.logger.info('Buy order failed: {} / {}'.format(ret_code, order))
 
         return ret_code, order
 
@@ -68,7 +68,7 @@ class Trade(object):
             trd_env=trade_env)
 
         if ret_code != ft.RET_OK:
-            print(order)
+            algo.Trade.logger.info('Sell order failed: {} / {}'.format(ret_code, order))
 
         return ret_code, order
 

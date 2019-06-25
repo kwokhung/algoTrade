@@ -387,7 +387,7 @@ class Quote(object):
 
     @staticmethod
     def get_last_price(quote_ctx, code):
-        if 'US.' in code:
+        if False and 'US.' in code:
             return Quote.get_last_price_worldtradingdata(code)
 
         ret_code, market_snapshot = Quote.get_market_snapshot(quote_ctx, code)

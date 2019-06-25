@@ -214,7 +214,7 @@ class Code(object):
                         leverage = abs(leverage)
 
                         updated_codes = updated_codes.append({
-                            'trade_env': ft.TrdEnv.SIMULATE,
+                            'trade_env': ft.TrdEnv.REAL,
                             'code': favourables_max['stock'],
                             'name': favourables_max['name'],
                             'lot_size': favourables_max['lot_size'],
@@ -380,16 +380,16 @@ class Code(object):
 
             if self.enable:
                 try:
-                    if self.force_to_liquidate:
-                        algo.Program.force_to_liquidate(self.quote_ctx, self.trade_ctx, self.trade_env, self.code)
-                    else:
-                        ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, self.start, self.end)
+                    ret_code, klines = algo.Quote.get_kline(self.quote_ctx, self.code, self.start, self.end)
 
-                        if ret_code == ft.RET_OK:
-                            time_key = np.array(klines['time_key'])
-                            close = np.array(klines['close'])
-                            prev_close_price = klines['last_close'].iloc[0]
+                    if ret_code == ft.RET_OK:
+                        time_key = np.array(klines['time_key'])
+                        close = np.array(klines['close'])
+                        prev_close_price = klines['last_close'].iloc[0]
 
+                        if self.force_to_liquidate:
+                            algo.Program.force_to_liquidate(self.quote_ctx, self.trade_ctx, self.trade_env, self.code, time_key[len(close) - 1], (len(close) - 1))
+                        else:
                             sma_1 = talib.SMA(close, self.sma_parameters[0])
                             sma_2 = talib.SMA(close, self.sma_parameters[1])
                             sma_3 = talib.SMA(close, self.sma_parameters[2])
@@ -398,6 +398,7 @@ class Code(object):
                                                             self.macd_parameters[0],
                                                             self.macd_parameters[1],
                                                             self.macd_parameters[2])
+
                             algo.Program.trade(self.quote_ctx,
                                                self.trade_ctx,
                                                self.trade_env,
@@ -470,13 +471,14 @@ class Code(object):
     def test_year(self):
         # algo.Code.update_us_codes(self)
 
-        start = '2019-06-10'
+        start = '2019-06-24'
         # start = 'today'
 
         if start == 'today':
             start = time.strftime("%Y-%m-%d")
 
-        end = 'today'
+        end = '2019-06-24'
+        # end = 'today'
 
         if end == 'today':
             end = time.strftime("%Y-%m-%d")
