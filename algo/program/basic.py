@@ -116,7 +116,8 @@ class Program(object):
                         algo.Program.logger.info('{} ({}): Not lower than last close: @{} ({})'.format(time_key[i], i, close[i], prev_close_price))
                 else:
                     algo.Program.logger.info('{} ({}): Cannot short sell'.format(time_key[i], i))
-            elif algo.Program.buy_signal_occur(i, time_key, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy, prev_close_price, not_dare_to_buy):
+
+            if algo.Program.buy_signal_occur(i, time_key, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy, prev_close_price, not_dare_to_buy):
                 if True or close[i] > prev_close_price:
                     algo.Program.suggest_buy(quote_ctx, trade_ctx, trade_env, code, qty_to_buy, time_key[i])
                 else:
@@ -199,7 +200,8 @@ class Program(object):
                         algo.Program.logger.info('{} ({}): Cannot short sell'.format(time_key[i], i))
 
                         action[i] = 0
-                elif algo.Program.buy_signal_occur(i, time_key, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy, prev_close_price, not_dare_to_buy):
+
+                if algo.Program.buy_signal_occur(i, time_key, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy, prev_close_price, not_dare_to_buy):
                     if True or close[i] > prev_close_price:
                         algo.Program.logger.info('{} ({}): Buy: @{}'.format(time_key[i], i, close[i]))
                         action[i] = 1
@@ -250,7 +252,7 @@ class Program(object):
         date_time = datetime.datetime.strptime(time_key, '%Y-%m-%d %H:%M:%S')
 
         if 'HK.' in code:
-            liquidation_time = datetime.time(15, 45, 0)
+            liquidation_time = datetime.time(15, 30, 0)
         elif 'SH.' in code:
             liquidation_time = datetime.time(14, 45, 0)
         elif 'SZ.' in code:
@@ -270,7 +272,7 @@ class Program(object):
         date_time = datetime.datetime.strptime(time_key, '%Y-%m-%d %H:%M:%S')
 
         if 'HK.' in code:
-            stop_trade_time = datetime.time(11, 00, 0)
+            stop_trade_time = datetime.time(15, 00, 0)
         elif 'SH.' in code:
             stop_trade_time = datetime.time(14, 15, 0)
         elif 'SZ.' in code:
@@ -496,6 +498,16 @@ class Program(object):
                 return False
             else:
                 return True
+        elif strategy == 'I1':
+            if not algo.Program.dare_to_buy_i1(i, time_key, close, prev_close_price, not_dare_to_buy):
+                return False
+            else:
+                return True
+        elif strategy == 'I2':
+            if not algo.Program.dare_to_buy_i2(i, time_key, close, prev_close_price, not_dare_to_buy):
+                return False
+            else:
+                return True
         else:
             return False
 
@@ -535,6 +547,16 @@ class Program(object):
         algo.Program.logger.info('{} ({}): Buy Signal occur: @{}'.format(time_key[i], i, close[i]))
 
         return True
+
+    @staticmethod
+    def dare_to_buy_i1(i, time_key, close, prev_close_price, not_dare_to_buy):
+        algo.Program.logger.info('{} ({}): Buy Signal occur: @{}'.format(time_key[i], i, close[i]))
+
+        return True
+
+    @staticmethod
+    def dare_to_buy_i2(i, time_key, close, prev_close_price, not_dare_to_buy):
+        return False
 
     @staticmethod
     def buy_signal_before_cross(i, close, macd, signal, sma_1, sma_2):
@@ -597,6 +619,11 @@ class Program(object):
                 return False
             else:
                 return True
+        elif strategy == 'I1':
+            if not algo.Program.dare_to_sell_i1(i, time_key, close, prev_close_price, not_dare_to_sell):
+                return False
+            else:
+                return True
         else:
             return False
 
@@ -633,6 +660,16 @@ class Program(object):
                 close[i - 4] > close[i - 5]:
             return False
 
+        algo.Program.logger.info('{} ({}): Sell Signal occur: @{}'.format(time_key[i], i, close[i]))
+
+        return True
+
+    @staticmethod
+    def dare_to_sell_i1(i, time_key, close, prev_close_price, not_dare_to_sell):
+        return False
+
+    @staticmethod
+    def dare_to_sell_i2(i, time_key, close, prev_close_price, not_dare_to_sell):
         algo.Program.logger.info('{} ({}): Sell Signal occur: @{}'.format(time_key[i], i, close[i]))
 
         return True

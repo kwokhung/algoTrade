@@ -23,11 +23,19 @@ class Code(object):
     leverage_ratio_max = 0
     dare_factor = 0
     liquidate_factor = 0
+    default_trade_env = ''
+    default_strategy = ''
+    enable_call = False
+    enable_put = False
+    enable_bull = False
+    enable_bear = False
+
     quote_ctx = None
     hk_trade_ctx = None
     hkcc_trade_ctx = None
     us_trade_ctx = None
     trade_ctx = None
+
     trade_env = ''
     codes = None
     code_length = 0
@@ -128,6 +136,28 @@ class Code(object):
         self.leverage_ratio_max = self.config['leverage_ratio_max'][0]
         self.dare_factor = self.config['dare_factor'][0]
         self.liquidate_factor = self.config['liquidate_factor'][0]
+        self.default_trade_env = self.config['default_trade_env'][0]
+        self.default_strategy = self.config['default_strategy'][0]
+
+        if self.config['enable_call'][0] == 'yes':
+            self.enable_call = True
+        else:
+            self.enable_call = False
+
+        if self.config['enable_put'][0] == 'yes':
+            self.enable_put = True
+        else:
+            self.enable_put = False
+
+        if self.config['enable_bull'][0] == 'yes':
+            self.enable_bull = True
+        else:
+            self.enable_bull = False
+
+        if self.config['enable_bear'][0] == 'yes':
+            self.enable_bear = True
+        else:
+            self.enable_bear = False
 
         print(self.config)
 
@@ -185,6 +215,10 @@ class Code(object):
                 favourables = warrant[0].loc[(warrant[0]['status'] == ft.WarrantStatus.NORMAL) &
                                              (warrant[0]['volume'] != 0) &
                                              (warrant[0]['price_change_val'] > 0) &
+                                             (((warrant[0]['type'] == ft.WrtType.CALL) & self.enable_call) |
+                                              ((warrant[0]['type'] == ft.WrtType.PUT) & self.enable_put) |
+                                              ((warrant[0]['type'] == ft.WrtType.BULL) & self.enable_bull) |
+                                              ((warrant[0]['type'] == ft.WrtType.BEAR) & self.enable_bear)) &
                                              ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (abs(warrant[0]['effective_leverage']) >= self.leverage_ratio_min)) |
                                               (((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & (warrant[0]['leverage'] >= self.leverage_ratio_min))) &
                                              ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (abs(warrant[0]['effective_leverage']) <= self.leverage_ratio_max)) |
@@ -214,7 +248,7 @@ class Code(object):
                         leverage = abs(leverage)
 
                         updated_codes = updated_codes.append({
-                            'trade_env': ft.TrdEnv.SIMULATE,
+                            'trade_env': self.default_trade_env,
                             'code': favourables_max['stock'],
                             'name': favourables_max['name'],
                             'lot_size': favourables_max['lot_size'],
@@ -225,7 +259,7 @@ class Code(object):
                             'short_sell_enable': 'no',
                             'qty_to_sell': lot_for_trade * favourables_max['lot_size'],
                             'force_to_liquidate': 'no',
-                            'strategy': 'H',
+                            'strategy': self.default_strategy,
                             'neg_to_liquidate': leverage * self.liquidate_factor,
                             'pos_to_liquidate': leverage * self.liquidate_factor,
                             'not_dare_to_buy': leverage * self.dare_factor,
