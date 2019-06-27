@@ -214,7 +214,7 @@ class Code(object):
                         leverage = abs(leverage)
 
                         updated_codes = updated_codes.append({
-                            'trade_env': ft.TrdEnv.REAL,
+                            'trade_env': ft.TrdEnv.SIMULATE,
                             'code': favourables_max['stock'],
                             'name': favourables_max['name'],
                             'lot_size': favourables_max['lot_size'],
@@ -225,7 +225,7 @@ class Code(object):
                             'short_sell_enable': 'no',
                             'qty_to_sell': lot_for_trade * favourables_max['lot_size'],
                             'force_to_liquidate': 'no',
-                            'strategy': 'G',
+                            'strategy': 'H',
                             'neg_to_liquidate': leverage * self.liquidate_factor,
                             'pos_to_liquidate': leverage * self.liquidate_factor,
                             'not_dare_to_buy': leverage * self.dare_factor,
