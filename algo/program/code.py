@@ -29,6 +29,7 @@ class Code(object):
     enable_put = False
     enable_bull = False
     enable_bear = False
+    price_change_val = 0
 
     quote_ctx = None
     hk_trade_ctx = None
@@ -159,6 +160,8 @@ class Code(object):
         else:
             self.enable_bear = False
 
+        self.price_change_val = self.config['price_change_val'][0]
+
         print(self.config)
 
     def on_modified(self, event):
@@ -192,11 +195,15 @@ class Code(object):
                                                           row['code'])
             if algo.Program.get_position(trade_ctx, row['trade_env'], row['code']) == 0 and\
                     not algo.Program.order_exist(trade_ctx, row['trade_env'], row['code']):
+                # updated_codes.loc[index, 'trade_env'] = self.default_trade_env
                 updated_codes.loc[index, 'enable'] = 'no'
+                updated_codes.loc[index, 'force_to_liquidate'] = 'no'
             else:
-                algo.Code.logger.info('Enable code: {} ({})'.format(row['code'], row['name']))
+                algo.Code.logger.info('Monitor code: {} ({})'.format(row['code'], row['name']))
 
+                # updated_codes.loc[index, 'trade_env'] = self.default_trade_env
                 updated_codes.loc[index, 'enable'] = 'yes'
+                # updated_codes.loc[index, 'force_to_liquidate'] = 'no'
 
                 code_enabled = code_enabled + 1
 
@@ -204,17 +211,26 @@ class Code(object):
 
         # code_list = pd.Series(['HK.800000'])
         code_list = pd.Series(['HK.800000', 'HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
-        code_list = code_list.append(algo.Code.code_list.sample(n=len(algo.Code.code_list), replace=False), ignore_index=True)
+        # code_list = code_list.append(algo.Code.code_list.sample(n=len(algo.Code.code_list), replace=False), ignore_index=True)
+        code_list = code_list.append(algo.Code.code_list, ignore_index=True)
+        code_list = code_list.sample(n=len(code_list), replace=False)
         # print(code_list)
 
         for code in code_list:
+            if code_enabled >= self.code_limit:
+                algo.Code.logger.info('Code enabled reached limits: {} >= {}'.format(code_enabled, self.code_limit))
+
+                break
+
             try:
                 ret_code, warrant = algo.Quote.get_warrant(self.quote_ctx, code, self.leverage_ratio_min, self.leverage_ratio_max)
                 # warrant[0].to_csv('C:/temp/result/warrant_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
 
                 favourables = warrant[0].loc[(warrant[0]['status'] == ft.WarrantStatus.NORMAL) &
                                              (warrant[0]['volume'] != 0) &
-                                             (warrant[0]['price_change_val'] > 0) &
+                                             (((warrant[0]['price_change_val'] > 0) & (self.price_change_val > 0)) |
+                                              (True & (self.price_change_val == 0)) |
+                                              ((warrant[0]['price_change_val'] < 0) & (self.price_change_val < 0))) &
                                              (((warrant[0]['type'] == ft.WrtType.CALL) & self.enable_call) |
                                               ((warrant[0]['type'] == ft.WrtType.PUT) & self.enable_put) |
                                               ((warrant[0]['type'] == ft.WrtType.BULL) & self.enable_bull) |
@@ -236,7 +252,9 @@ class Code(object):
                         if len(existed_code) > 0:
                             algo.Code.logger.info('Enable code: {} ({})'.format(favourables_max['stock'], favourables_max['name']))
 
+                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'trade_env'] = self.default_trade_env
                             updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'enable'] = 'yes'
+                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'force_to_liquidate'] = 'no'
 
                             code_enabled = code_enabled + 1
                     else:
@@ -270,15 +288,10 @@ class Code(object):
                         code_enabled = code_enabled + 1
 
                 time.sleep(3)
-
-                code_limit = self.code_limit
-
-                if code_enabled >= code_limit:
-                    algo.Code.logger.info('Code enabled reached limits: {} >= {}'.format(code_enabled, code_limit))
-
-                    break
-            except TypeError:
+            except KeyError:
                 print('get_warrant failed')
+
+                time.sleep(3)
 
         updated_codes.to_csv('C:/temp/code.csv', float_format='%f', index=False)
 

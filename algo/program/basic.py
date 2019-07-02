@@ -252,7 +252,7 @@ class Program(object):
         date_time = datetime.datetime.strptime(time_key, '%Y-%m-%d %H:%M:%S')
 
         if 'HK.' in code:
-            liquidation_time = datetime.time(15, 30, 0)
+            liquidation_time = datetime.time(16, 00, 0)
         elif 'SH.' in code:
             liquidation_time = datetime.time(14, 45, 0)
         elif 'SZ.' in code:
@@ -272,7 +272,7 @@ class Program(object):
         date_time = datetime.datetime.strptime(time_key, '%Y-%m-%d %H:%M:%S')
 
         if 'HK.' in code:
-            stop_trade_time = datetime.time(15, 00, 0)
+            stop_trade_time = datetime.time(11, 0, 0)
         elif 'SH.' in code:
             stop_trade_time = datetime.time(14, 15, 0)
         elif 'SZ.' in code:
@@ -508,6 +508,16 @@ class Program(object):
                 return False
             else:
                 return True
+        elif strategy == 'J':
+            if not algo.Program.dare_to_buy_j(i, time_key, close, prev_close_price, not_dare_to_buy):
+                return False
+            else:
+                return True
+        elif strategy == 'K':
+            if not algo.Program.dare_to_buy_k(i, time_key, close, prev_close_price, not_dare_to_buy):
+                return False
+            else:
+                return True
         else:
             return False
 
@@ -557,6 +567,68 @@ class Program(object):
     @staticmethod
     def dare_to_buy_i2(i, time_key, close, prev_close_price, not_dare_to_buy):
         return False
+
+    @staticmethod
+    def dare_to_buy_j(i, time_key, close, prev_close_price, not_dare_to_buy):
+        if close[i] <= close[i - 1] or \
+                close[i - 1] < close[i - 2] or \
+                close[i - 2] < close[i - 3] or \
+                close[i - 3] < close[i - 4] or \
+                close[i - 4] < close[i - 5]:
+            return False
+
+        algo.Program.logger.info('{} ({}): Buy Signal occur: @{}'.format(time_key[i], i, close[i]))
+
+        if False and close[i] >= prev_close_price:
+            algo.Program.logger.info('{} ({}): Not lower than last close: @{} ({})'.format(time_key[i], i, close[i], prev_close_price))
+
+            return False
+
+        running = i - 1
+
+        while running >= 0:
+            change_rate = (close[i] / close[running]) - 1 if close[running] != 0 else 0
+            change_rate_percentage = change_rate * 100
+
+            if change_rate_percentage < -not_dare_to_buy:
+                return True
+
+            running = running - 1
+
+        algo.Program.logger.info('{} ({}): Not dare to buy: @{} ({} >= -{})'.format(time_key[i], i, close[i], change_rate_percentage, not_dare_to_buy))
+
+        return False
+
+    @staticmethod
+    def dare_to_buy_k(i, time_key, close, prev_close_price, not_dare_to_buy):
+        if close[i] <= close[i - 1] or \
+                close[i - 1] < close[i - 2] or \
+                close[i - 2] < close[i - 3] or \
+                close[i - 3] < close[i - 4] or \
+                close[i - 4] < close[i - 5]:
+            return False
+
+        algo.Program.logger.info('{} ({}): Buy Signal occur: @{}'.format(time_key[i], i, close[i]))
+
+        if close[i] <= prev_close_price:
+            algo.Program.logger.info('{} ({}): Not higher than last close: @{} ({})'.format(time_key[i], i, close[i], prev_close_price))
+
+            return False
+
+        running = i - 1
+
+        while running >= 0:
+            change_rate = (close[i] / close[running]) - 1 if close[running] != 0 else 0
+            change_rate_percentage = change_rate * 100
+
+            if change_rate_percentage > not_dare_to_buy:
+                algo.Program.logger.info('{} ({}): Not dare to buy: @{} ({} > {})'.format(time_key[i], i, close[i], change_rate_percentage, not_dare_to_buy))
+
+                return False
+
+            running = running - 1
+
+        return True
 
     @staticmethod
     def buy_signal_before_cross(i, close, macd, signal, sma_1, sma_2):
@@ -624,6 +696,21 @@ class Program(object):
                 return False
             else:
                 return True
+        elif strategy == 'I2':
+            if not algo.Program.dare_to_sell_i2(i, time_key, close, prev_close_price, not_dare_to_sell):
+                return False
+            else:
+                return True
+        elif strategy == 'J':
+            if not algo.Program.dare_to_sell_j(i, time_key, close, prev_close_price, not_dare_to_sell):
+                return False
+            else:
+                return True
+        elif strategy == 'K':
+            if not algo.Program.dare_to_sell_k(i, time_key, close, prev_close_price, not_dare_to_sell):
+                return False
+            else:
+                return True
         else:
             return False
 
@@ -671,6 +758,68 @@ class Program(object):
     @staticmethod
     def dare_to_sell_i2(i, time_key, close, prev_close_price, not_dare_to_sell):
         algo.Program.logger.info('{} ({}): Sell Signal occur: @{}'.format(time_key[i], i, close[i]))
+
+        return True
+
+    @staticmethod
+    def dare_to_sell_j(i, time_key, close, prev_close_price, not_dare_to_sell):
+        if close[i] >= close[i - 1] or \
+                close[i - 1] > close[i - 2] or \
+                close[i - 2] > close[i - 3] or \
+                close[i - 3] > close[i - 4] or \
+                close[i - 4] > close[i - 5]:
+            return False
+
+        algo.Program.logger.info('{} ({}): Sell Signal occur: @{}'.format(time_key[i], i, close[i]))
+
+        if False and close[i] <= prev_close_price:
+            algo.Program.logger.info('{} ({}): Not higher than last close: @{} ({})'.format(time_key[i], i, close[i], prev_close_price))
+
+            return False
+
+        running = i - 1
+
+        while running >= 0:
+            change_rate = (close[i] / close[running]) - 1 if close[running] != 0 else 0
+            change_rate_percentage = change_rate * 100
+
+            if change_rate_percentage > not_dare_to_sell:
+                return True
+
+            running = running - 1
+
+        algo.Program.logger.info('{} ({}): Not dare to sell: @{} ({} <= {})'.format(time_key[i], i, close[i], change_rate_percentage, not_dare_to_sell))
+
+        return False
+
+    @staticmethod
+    def dare_to_sell_k(i, time_key, close, prev_close_price, not_dare_to_sell):
+        if close[i] >= close[i - 1] or \
+                close[i - 1] > close[i - 2] or \
+                close[i - 2] > close[i - 3] or \
+                close[i - 3] > close[i - 4] or \
+                close[i - 4] > close[i - 5]:
+            return False
+
+        algo.Program.logger.info('{} ({}): Sell Signal occur: @{}'.format(time_key[i], i, close[i]))
+
+        if close[i] >= prev_close_price:
+            algo.Program.logger.info('{} ({}): Not lower than last close: @{} ({})'.format(time_key[i], i, close[i], prev_close_price))
+
+            return False
+
+        running = i - 1
+
+        while running >= 0:
+            change_rate = (close[i] / close[running]) - 1 if close[running] != 0 else 0
+            change_rate_percentage = change_rate * 100
+
+            if change_rate_percentage < -not_dare_to_sell:
+                algo.Program.logger.info('{} ({}): Not dare to sell: @{} ({} < -{})'.format(time_key[i], i, close[i], change_rate_percentage, not_dare_to_sell))
+
+                return False
+
+            running = running - 1
 
         return True
 
