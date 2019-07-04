@@ -552,8 +552,8 @@ class Code(object):
     def test_year(self):
         # algo.Code.update_us_codes(self)
 
-        # start = '2019-07-02'
-        start = 'today'
+        start = '2019-06-27'
+        # start = 'today'
 
         if start == 'today':
             start = time.strftime("%Y-%m-%d")

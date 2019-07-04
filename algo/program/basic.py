@@ -646,15 +646,34 @@ class Program(object):
     def dare_to_buy_l(i, time_key, close, prev_close_price, not_dare_to_buy, encourage_factor):
         if close[i] < close[i - 1] or \
                 close[i - 1] < close[i - 2] or \
-                close[i - 2] <= close[i - 3] or \
-                close[i - 3] >= close[i - 4] or \
-                close[i - 4] > close[i - 5] or \
-                close[i - 5] > close[i - 6]:
+                close[i - 2] <= close[i - 3]:
+            return False
+
+        turning_point = i - 3
+
+        while True:
+            if close[turning_point] == close[turning_point - 1]:
+                turning_point -= 1
+            else:
+                break
+
+        if close[turning_point] >= close[turning_point - 1] or \
+                close[turning_point - 1] > close[turning_point - 2] or \
+                close[turning_point - 2] > close[turning_point - 3]:
             return False
 
         algo.Program.logger.info('{} ({}): Buy Signal occur: @{}'.format(time_key[i], i, close[i]))
 
         # return True
+
+        for running in range(i - 1, -1, -1):
+            change_rate = (close[i] / close[running]) - 1 if close[running] != 0 else 0
+            change_rate_percentage = change_rate * 100
+
+            if change_rate_percentage > not_dare_to_buy:
+                algo.Program.logger.info('{} ({}): Rise too much, not dare to buy: @{} ({} > {})'.format(time_key[i], i, close[i], change_rate_percentage, not_dare_to_buy))
+
+                return False
 
         min_change_rate_percentage = 0
 
@@ -670,7 +689,7 @@ class Program(object):
             if change_rate_percentage < min_change_rate_percentage:
                 min_change_rate_percentage = change_rate_percentage
 
-        algo.Program.logger.info('{} ({}): Not dare to buy: @{} ({} >= -{})'.format(time_key[i], i, close[i], min_change_rate_percentage, not_dare_to_buy * encourage_factor))
+        algo.Program.logger.info('{} ({}): Drop not too much, not dare to buy: @{} ({} >= -{})'.format(time_key[i], i, close[i], min_change_rate_percentage, not_dare_to_buy * encourage_factor))
 
         return False
 
@@ -864,15 +883,34 @@ class Program(object):
     def dare_to_sell_l(i, time_key, close, prev_close_price, not_dare_to_sell, encourage_factor):
         if close[i] > close[i - 1] or \
                 close[i - 1] > close[i - 2] or \
-                close[i - 2] >= close[i - 3] or \
-                close[i - 3] <= close[i - 4] or \
-                close[i - 4] < close[i - 5] or \
-                close[i - 5] < close[i - 6]:
+                close[i - 2] >= close[i - 3]:
+            return False
+
+        turning_point = i - 3
+
+        while True:
+            if close[turning_point] == close[turning_point - 1]:
+                turning_point -= 1
+            else:
+                break
+
+        if close[turning_point] <= close[turning_point - 1] or \
+                close[turning_point - 1] < close[turning_point - 2] or \
+                close[turning_point - 2] < close[turning_point - 3]:
             return False
 
         algo.Program.logger.info('{} ({}): Sell Signal occur: @{}'.format(time_key[i], i, close[i]))
 
         # return True
+
+        for running in range(i - 1, -1, -1):
+            change_rate = (close[i] / close[running]) - 1 if close[running] != 0 else 0
+            change_rate_percentage = change_rate * 100
+
+            if change_rate_percentage < -not_dare_to_sell:
+                algo.Program.logger.info('{} ({}): Drop too much, not dare to sell: @{} ({} < -{})'.format(time_key[i], i, close[i], change_rate_percentage, not_dare_to_sell))
+
+                return False
 
         max_change_rate_percentage = 0
 
@@ -887,7 +925,7 @@ class Program(object):
             if change_rate_percentage > max_change_rate_percentage:
                 max_change_rate_percentage = change_rate_percentage
 
-        algo.Program.logger.info('{} ({}): Not dare to sell: @{} ({} <= {})'.format(time_key[i], i, close[i], max_change_rate_percentage, not_dare_to_sell * encourage_factor))
+        algo.Program.logger.info('{} ({}): Rise not too much, not dare to sell: @{} ({} <= {})'.format(time_key[i], i, close[i], max_change_rate_percentage, not_dare_to_sell * encourage_factor))
 
         return False
 
