@@ -30,6 +30,10 @@ class Code(object):
     enable_bull = False
     enable_bear = False
     price_change_val = 0
+    is_time_to_stop_trade = False
+    is_time_to_liquidate = False
+    need_to_update_codes = True
+    encourage_factor = 0
 
     quote_ctx = None
     hk_trade_ctx = None
@@ -162,6 +166,23 @@ class Code(object):
 
         self.price_change_val = self.config['price_change_val'][0]
 
+        if self.config['is_time_to_stop_trade'][0] == 'yes':
+            self.is_time_to_stop_trade = True
+        else:
+            self.is_time_to_stop_trade = False
+
+        if self.config['is_time_to_liquidate'][0] == 'yes':
+            self.is_time_to_liquidate = True
+        else:
+            self.is_time_to_liquidate = False
+
+        if self.config['need_to_update_codes'][0] == 'yes':
+            self.need_to_update_codes = True
+        else:
+            self.need_to_update_codes = False
+
+        self.encourage_factor = self.config['encourage_factor'][0]
+
         print(self.config)
 
     def on_modified(self, event):
@@ -205,15 +226,21 @@ class Code(object):
                 updated_codes.loc[index, 'enable'] = 'yes'
                 # updated_codes.loc[index, 'force_to_liquidate'] = 'no'
 
-                code_enabled = code_enabled + 1
+                code_enabled += 1
 
         updated_codes = updated_codes.reset_index(drop=True)
 
         # code_list = pd.Series(['HK.800000'])
-        code_list = pd.Series(['HK.800000', 'HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
+        # code_list = pd.Series(['HK.800000', 'HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
+        # code_list = pd.Series(['HK.800000', 'HK.00700', 'HK.00005', 'HK.02823', 'HK.03188'])
+
+        # code_list = pd.Series(['HK.800000', 'HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
         # code_list = code_list.append(algo.Code.code_list.sample(n=len(algo.Code.code_list), replace=False), ignore_index=True)
+
+        code_list = pd.Series(['HK.800000', 'HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
         code_list = code_list.append(algo.Code.code_list, ignore_index=True)
         code_list = code_list.sample(n=len(code_list), replace=False)
+
         # print(code_list)
 
         for code in code_list:
@@ -253,10 +280,11 @@ class Code(object):
                             algo.Code.logger.info('Enable code: {} ({})'.format(favourables_max['stock'], favourables_max['name']))
 
                             updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'trade_env'] = self.default_trade_env
+                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'strategy'] = self.default_strategy
                             updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'enable'] = 'yes'
                             updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'force_to_liquidate'] = 'no'
 
-                            code_enabled = code_enabled + 1
+                            code_enabled += 1
                     else:
                         algo.Code.logger.info('Add code: {} ({})'.format(favourables_max['stock'], favourables_max['name']))
 
@@ -285,7 +313,7 @@ class Code(object):
                             'leverage': leverage
                         }, ignore_index=True)
 
-                        code_enabled = code_enabled + 1
+                        code_enabled += 1
 
                 time.sleep(3)
             except KeyError:
@@ -334,7 +362,7 @@ class Code(object):
         options_snapshot.to_csv('C:/temp/{}_options_snapshot.csv'.format('US.BABA'), float_format='%f')
 
     def roll_code(self):
-        self.code_index = self.code_index + 1
+        self.code_index += 1
 
         if self.code_index == self.code_length:
             self.code_index = 0
@@ -422,7 +450,7 @@ class Code(object):
         while True:
             print('Trade: {}'.format(code_index))
 
-            if self.code_index == 0:
+            if self.need_to_update_codes and self.code_index == 0:
                 self.update_codes()
 
             if self.enable:
@@ -449,6 +477,8 @@ class Code(object):
                             algo.Program.trade(self.quote_ctx,
                                                self.trade_ctx,
                                                self.trade_env,
+                                               self.is_time_to_stop_trade,
+                                               self.is_time_to_liquidate,
                                                self.code,
                                                self.qty_to_buy,
                                                self.short_sell_enable,
@@ -458,6 +488,7 @@ class Code(object):
                                                self.pos_to_liquidate,
                                                self.not_dare_to_buy,
                                                self.not_dare_to_sell,
+                                               self.encourage_factor,
                                                time_key,
                                                close,
                                                prev_close_price,
@@ -472,7 +503,7 @@ class Code(object):
 
             self.roll_code()
 
-            code_index = code_index + 1
+            code_index += 1
 
     def test(self):
         code_index = 0
@@ -492,6 +523,8 @@ class Code(object):
                         algo.Program.test(self.quote_ctx,
                                           self.trade_ctx,
                                           self.trade_env,
+                                          self.is_time_to_stop_trade,
+                                          self.is_time_to_liquidate,
                                           self.code,
                                           self.short_sell_enable,
                                           self.strategy,
@@ -499,6 +532,7 @@ class Code(object):
                                           self.pos_to_liquidate,
                                           self.not_dare_to_buy,
                                           self.not_dare_to_sell,
+                                          self.encourage_factor,
                                           klines,
                                           self.macd_parameters[0],
                                           self.macd_parameters[1],
@@ -513,19 +547,19 @@ class Code(object):
 
             self.roll_code()
 
-            code_index = code_index + 1
+            code_index += 1
 
     def test_year(self):
         # algo.Code.update_us_codes(self)
 
-        start = '2019-06-24'
-        # start = 'today'
+        # start = '2019-07-02'
+        start = 'today'
 
         if start == 'today':
             start = time.strftime("%Y-%m-%d")
 
-        end = '2019-06-24'
-        # end = 'today'
+        # end = '2019-07-02'
+        end = 'today'
 
         if end == 'today':
             end = time.strftime("%Y-%m-%d")
@@ -539,9 +573,7 @@ class Code(object):
 
         year_result = pd.concat([time_column], axis=1)
 
-        code_index = 0
-
-        while code_index < self.code_length:
+        for code_index in range(0, self.code_length):
             print('Test: {}'.format(code_index))
 
             if self.enable:
@@ -555,6 +587,8 @@ class Code(object):
                             test_result = algo.Program.test(self.quote_ctx,
                                                             self.trade_ctx,
                                                             self.trade_env,
+                                                            self.is_time_to_stop_trade,
+                                                            self.is_time_to_liquidate,
                                                             self.code,
                                                             self.short_sell_enable,
                                                             self.strategy,
@@ -562,6 +596,7 @@ class Code(object):
                                                             self.pos_to_liquidate,
                                                             self.not_dare_to_buy,
                                                             self.not_dare_to_sell,
+                                                            self.encourage_factor,
                                                             klines,
                                                             self.macd_parameters[0],
                                                             self.macd_parameters[1],
@@ -581,8 +616,6 @@ class Code(object):
                 print(year_result)
 
             self.roll_code()
-
-            code_index = code_index + 1
 
         year_result.to_csv('C:/temp/result/year_result_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
 
