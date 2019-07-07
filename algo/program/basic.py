@@ -116,8 +116,7 @@ class Program(object):
                         algo.Program.logger.info('{} ({}): Not lower than last close: @{} ({})'.format(time_key[i], i, close[i], prev_close_price))
                 else:
                     algo.Program.logger.info('{} ({}): Cannot short sell'.format(time_key[i], i))
-
-            if algo.Program.buy_signal_occur(i, time_key, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy, prev_close_price, not_dare_to_buy, encourage_factor):
+            elif algo.Program.buy_signal_occur(i, time_key, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy, prev_close_price, not_dare_to_buy, encourage_factor):
                 if True or close[i] > prev_close_price:
                     algo.Program.suggest_buy(quote_ctx, trade_ctx, trade_env, code, qty_to_buy, time_key[i])
                 else:
@@ -200,8 +199,7 @@ class Program(object):
                         algo.Program.logger.info('{} ({}): Cannot short sell'.format(time_key[i], i))
 
                         action[i] = 0
-
-                if algo.Program.buy_signal_occur(i, time_key, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy, prev_close_price, not_dare_to_buy, encourage_factor):
+                elif algo.Program.buy_signal_occur(i, time_key, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy, prev_close_price, not_dare_to_buy, encourage_factor):
                     if True or close[i] > prev_close_price:
                         algo.Program.logger.info('{} ({}): Buy: @{}'.format(time_key[i], i, close[i]))
                         action[i] = 1
@@ -689,7 +687,7 @@ class Program(object):
             if change_rate_percentage < min_change_rate_percentage:
                 min_change_rate_percentage = change_rate_percentage
 
-        algo.Program.logger.info('{} ({}): Drop not too much, not dare to buy: @{} ({} >= -{})'.format(time_key[i], i, close[i], min_change_rate_percentage, not_dare_to_buy * encourage_factor))
+        algo.Program.logger.info('{} ({}): Drop not too much, not encourage to buy: @{} ({} >= -{})'.format(time_key[i], i, close[i], min_change_rate_percentage, not_dare_to_buy * encourage_factor))
 
         return False
 
@@ -724,6 +722,9 @@ class Program(object):
 
     @staticmethod
     def sell_signal_occur(i, time_key, close, macd, signal, sma_1, sma_2, short_sell_enable, strategy, prev_close_price, not_dare_to_sell, encourage_factor):
+        if not short_sell_enable:
+            return False
+
         if strategy == 'A':
             return algo.Program.buy_signal_before_cross(i, close, macd, signal, sma_1, sma_2) or\
                    algo.Program.buy_signal_after_cross(i, close, macd, signal, sma_1, sma_2)
@@ -925,7 +926,7 @@ class Program(object):
             if change_rate_percentage > max_change_rate_percentage:
                 max_change_rate_percentage = change_rate_percentage
 
-        algo.Program.logger.info('{} ({}): Rise not too much, not dare to sell: @{} ({} <= {})'.format(time_key[i], i, close[i], max_change_rate_percentage, not_dare_to_sell * encourage_factor))
+        algo.Program.logger.info('{} ({}): Rise not too much, not encourage to sell: @{} ({} <= {})'.format(time_key[i], i, close[i], max_change_rate_percentage, not_dare_to_sell * encourage_factor))
 
         return False
 

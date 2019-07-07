@@ -258,6 +258,8 @@ class Code(object):
                                              (((warrant[0]['price_change_val'] > 0) & (self.price_change_val > 0)) |
                                               (True & (self.price_change_val == 0)) |
                                               ((warrant[0]['price_change_val'] < 0) & (self.price_change_val < 0))) &
+                                             (((warrant[0]['low_price'] != 0) & ((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & ((((warrant[0]['high_price'] / warrant[0]['low_price']) - 1) * 100) >= (abs(warrant[0]['effective_leverage']) * self.encourage_factor))) |
+                                              ((warrant[0]['low_price'] != 0) & ((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & ((((warrant[0]['high_price'] / warrant[0]['low_price']) - 1) * 100) >= (warrant[0]['leverage'] * self.encourage_factor)))) &
                                              (((warrant[0]['type'] == ft.WrtType.CALL) & self.enable_call) |
                                               ((warrant[0]['type'] == ft.WrtType.PUT) & self.enable_put) |
                                               ((warrant[0]['type'] == ft.WrtType.BULL) & self.enable_bull) |
@@ -552,8 +554,8 @@ class Code(object):
     def test_year(self):
         # algo.Code.update_us_codes(self)
 
-        start = '2019-06-27'
-        # start = 'today'
+        # start = '2019-06-27'
+        start = 'today'
 
         if start == 'today':
             start = time.strftime("%Y-%m-%d")
