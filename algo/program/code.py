@@ -237,8 +237,8 @@ class Code(object):
         # code_list = pd.Series(['HK.800000', 'HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
         # code_list = code_list.append(algo.Code.code_list.sample(n=len(algo.Code.code_list), replace=False), ignore_index=True)
 
-        code_list = pd.Series(['HK.800000', 'HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
-        code_list = code_list.append(algo.Code.code_list, ignore_index=True)
+        code_list = pd.Series(['HK.800000'])
+        # code_list = code_list.append(algo.Code.code_list, ignore_index=True)
         code_list = code_list.sample(n=len(code_list), replace=False)
 
         # print(code_list)
@@ -281,10 +281,18 @@ class Code(object):
                         if len(existed_code) > 0:
                             algo.Code.logger.info('Enable code: {} ({})'.format(favourables_max['stock'], favourables_max['name']))
 
+                            leverage = favourables_max['effective_leverage'] if favourables_max['type'] == ft.WrtType.CALL or favourables_max['type'] == ft.WrtType.PUT else favourables_max['leverage']
+                            leverage = abs(leverage)
+
                             updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'trade_env'] = self.default_trade_env
                             updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'strategy'] = self.default_strategy
                             updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'enable'] = 'yes'
                             updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'force_to_liquidate'] = 'no'
+                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'neg_to_liquidate'] = leverage * self.liquidate_factor
+                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'pos_to_liquidate'] = leverage * self.liquidate_factor
+                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'not_dare_to_buy'] = leverage * self.dare_factor
+                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'not_dare_to_sell'] = leverage * self.dare_factor
+                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'leverage'] = leverage
 
                             code_enabled += 1
                     else:
@@ -317,10 +325,10 @@ class Code(object):
 
                         code_enabled += 1
 
-                time.sleep(3)
-            except KeyError:
+            except Exception as e:
                 print('get_warrant failed')
-
+                print(e)
+            finally:
                 time.sleep(3)
 
         updated_codes.to_csv('C:/temp/code.csv', float_format='%f', index=False)

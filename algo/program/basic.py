@@ -261,7 +261,7 @@ class Program(object):
         elif 'SZ.' in code:
             liquidation_time = datetime.time(14, 45, 0)
         elif 'US.' in code:
-            liquidation_time = datetime.time(15, 45, 0)
+            liquidation_time = datetime.time(15, 30, 0)
 
         if ('HK.' in code or 'SH.' in code or 'SZ.' in code or 'US.' in code) and date_time.time() >= liquidation_time:
             algo.Program.logger.info('{} ({}): Time to liquidate'.format(date_time, i))
@@ -286,7 +286,7 @@ class Program(object):
         elif 'SZ.' in code:
             stop_trade_time = datetime.time(14, 15, 0)
         elif 'US.' in code:
-            stop_trade_time = datetime.time(15, 15, 0)
+            stop_trade_time = datetime.time(15, 0, 0)
 
         if ('HK.' in code or 'SH.' in code or 'SZ.' in code or 'US.' in code) and date_time.time() >= stop_trade_time:
             algo.Program.logger.info('{} ({}): Time to stop trade'.format(date_time, i))
