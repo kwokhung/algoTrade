@@ -218,7 +218,7 @@ class Code(object):
                     not algo.Program.order_exist(trade_ctx, row['trade_env'], row['code']):
                 # updated_codes.loc[index, 'trade_env'] = self.default_trade_env
                 updated_codes.loc[index, 'enable'] = 'no'
-                updated_codes.loc[index, 'force_to_liquidate'] = 'no'
+                # updated_codes.loc[index, 'force_to_liquidate'] = 'no'
             else:
                 algo.Code.logger.info('Monitor code: {} ({})'.format(row['code'], row['name']))
 
@@ -237,8 +237,8 @@ class Code(object):
         # code_list = pd.Series(['HK.800000', 'HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
         # code_list = code_list.append(algo.Code.code_list.sample(n=len(algo.Code.code_list), replace=False), ignore_index=True)
 
-        code_list = pd.Series(['HK.800000'])
-        # code_list = code_list.append(algo.Code.code_list, ignore_index=True)
+        code_list = pd.Series(['HK.800000', 'HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
+        code_list = code_list.append(algo.Code.code_list, ignore_index=True)
         code_list = code_list.sample(n=len(code_list), replace=False)
 
         # print(code_list)
@@ -276,9 +276,10 @@ class Code(object):
                     # favourables_max.to_csv('C:/temp/result/favourables_max_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=False)
 
                     if updated_codes['code'].str.contains(favourables_max['stock']).any():
-                        existed_code = updated_codes.loc[(updated_codes['code'] == favourables_max['stock']) & (updated_codes['enable'] == 'no')]
+                        existed_code_without_position = updated_codes.loc[(updated_codes['code'] == favourables_max['stock']) & (updated_codes['enable'] == 'no')]
+                        existed_code_with_position = updated_codes.loc[(updated_codes['code'] == favourables_max['stock']) & (updated_codes['enable'] == 'yes')]
 
-                        if len(existed_code) > 0:
+                        if len(existed_code_without_position) > 0:
                             algo.Code.logger.info('Enable code: {} ({})'.format(favourables_max['stock'], favourables_max['name']))
 
                             leverage = favourables_max['effective_leverage'] if favourables_max['type'] == ft.WrtType.CALL or favourables_max['type'] == ft.WrtType.PUT else favourables_max['leverage']
@@ -295,6 +296,16 @@ class Code(object):
                             updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'leverage'] = leverage
 
                             code_enabled += 1
+
+                        if len(existed_code_with_position) > 0:
+                            leverage = favourables_max['effective_leverage'] if favourables_max['type'] == ft.WrtType.CALL or favourables_max['type'] == ft.WrtType.PUT else favourables_max['leverage']
+                            leverage = abs(leverage)
+
+                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'neg_to_liquidate'] = leverage * self.liquidate_factor
+                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'pos_to_liquidate'] = leverage * self.liquidate_factor
+                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'not_dare_to_buy'] = leverage * self.dare_factor
+                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'not_dare_to_sell'] = leverage * self.dare_factor
+                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'leverage'] = leverage
                     else:
                         algo.Code.logger.info('Add code: {} ({})'.format(favourables_max['stock'], favourables_max['name']))
 
@@ -562,8 +573,8 @@ class Code(object):
     def test_year(self):
         # algo.Code.update_us_codes(self)
 
-        # start = '2019-06-27'
-        start = 'today'
+        start = '2019-06-01'
+        # start = 'today'
 
         if start == 'today':
             start = time.strftime("%Y-%m-%d")

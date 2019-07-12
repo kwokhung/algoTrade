@@ -255,7 +255,7 @@ class Program(object):
             return True
 
         if 'HK.' in code:
-            liquidation_time = datetime.time(15, 30, 0)
+            liquidation_time = datetime.time(16, 0, 0)
         elif 'SH.' in code:
             liquidation_time = datetime.time(14, 45, 0)
         elif 'SZ.' in code:
@@ -280,7 +280,7 @@ class Program(object):
             return True
 
         if 'HK.' in code:
-            stop_trade_time = datetime.time(15, 0, 0)
+            stop_trade_time = datetime.time(16, 0, 0)
         elif 'SH.' in code:
             stop_trade_time = datetime.time(14, 15, 0)
         elif 'SZ.' in code:
