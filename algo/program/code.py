@@ -10,6 +10,7 @@ from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 import logging
 import logging.config
+from sqlalchemy import create_engine
 
 
 class Code(object):
@@ -64,6 +65,8 @@ class Code(object):
 
     logger = None
     code_list = None
+
+    engine = create_engine('mysql://algotrade:12345678@127.0.0.1:3306/algotrade?charset=utf8')
 
     def __init__(self):
         logging.config.fileConfig('C:/temp/log/logging.config')
@@ -131,7 +134,8 @@ class Code(object):
         print('Code {}'.format(self.code))
 
     def get_config(self):
-        self.config = pd.read_csv('C:/temp/config.csv')
+        # self.config = pd.read_csv('C:/temp/config.csv')
+        self.config = pd.read_sql('config', algo.Code.engine)
         self.api_svr_ip = self.config['api_svr_ip'][0]
         self.api_svr_port = int(self.config['api_svr_port'][0])
         self.unlock_password = self.config['unlock_password'][0]
@@ -190,7 +194,8 @@ class Code(object):
             self.get_codes()
 
     def get_codes(self):
-        self.codes = pd.read_csv('C:/temp/code.csv')
+        # self.codes = pd.read_csv('C:/temp/code.csv')
+        self.codes = pd.read_sql('codes', algo.Code.engine)
         self.code_length = len(self.codes['code'])
         self.code_index = -1
 
@@ -198,7 +203,25 @@ class Code(object):
 
         print(self.codes)
 
-    def update_codes(self):
+    @staticmethod
+    def refresh_code_list():
+        # code_list = pd.Series(['HK.800000'])
+        # code_list = pd.Series(['HK.800000', 'HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
+        # code_list = pd.Series(['HK.800000', 'HK.00700', 'HK.00005', 'HK.02823', 'HK.03188'])
+        code_list = pd.Series(['HK.800000', 'HK.800000', 'HK.800000', 'HK.800000', 'HK.800000'])
+
+        # code_list = pd.Series(['HK.800000', 'HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
+        # code_list = code_list.append(algo.Code.code_list.sample(n=len(algo.Code.code_list), replace=False), ignore_index=True)
+
+        # code_list = pd.Series(['HK.800000', 'HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
+        # code_list = code_list.append(algo.Code.code_list, ignore_index=True)
+        # code_list = code_list.sample(n=len(code_list), replace=False)
+
+        # print(code_list)
+
+        return code_list
+
+    def refresh_existing_codes(self):
         updated_codes = self.codes.copy()
 
         length = len(updated_codes)
@@ -225,23 +248,122 @@ class Code(object):
                 # updated_codes.loc[index, 'trade_env'] = self.default_trade_env
                 updated_codes.loc[index, 'enable'] = 'yes'
                 # updated_codes.loc[index, 'force_to_liquidate'] = 'no'
-
                 code_enabled += 1
 
-        updated_codes = updated_codes.reset_index(drop=True)
+        updated_codes = updated_codes[updated_codes['enable'] == 'yes'].reset_index(drop=True)
 
-        # code_list = pd.Series(['HK.800000'])
-        # code_list = pd.Series(['HK.800000', 'HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
-        # code_list = pd.Series(['HK.800000', 'HK.00700', 'HK.00005', 'HK.02823', 'HK.03188'])
+        return updated_codes, code_enabled
 
-        # code_list = pd.Series(['HK.800000', 'HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
-        # code_list = code_list.append(algo.Code.code_list.sample(n=len(algo.Code.code_list), replace=False), ignore_index=True)
+    def get_most_favourable(self, code, updated_codes, within):
+        most_favourable = None
 
-        code_list = pd.Series(['HK.800000', 'HK.02800', 'HK.02822', 'HK.02823', 'HK.03188'])
-        code_list = code_list.append(algo.Code.code_list, ignore_index=True)
-        code_list = code_list.sample(n=len(code_list), replace=False)
+        try:
+            ret_code, warrant = algo.Quote.get_warrant(self.quote_ctx, code, self.leverage_ratio_min, self.leverage_ratio_max)
+            warrants = warrant[0]
+            # warrants.to_csv('C:/temp/result/warrant_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
 
-        # print(code_list)
+            favourables = warrants.loc[(((warrants['stock'].isin(updated_codes['code'])) & (within == 'yes')) |
+                                        (True & (within is None)) |
+                                        (~(warrants['stock'].isin(updated_codes['code'])) & (within == 'no'))) &
+                                       (warrants['status'] == ft.WarrantStatus.NORMAL) &
+                                       (warrants['volume'] != 0) &
+                                       (((warrants['price_change_val'] > 0) & (self.price_change_val > 0)) |
+                                        (True & (self.price_change_val == 0)) |
+                                        ((warrants['price_change_val'] < 0) & (self.price_change_val < 0))) &
+                                       (((warrants['low_price'] != 0) & ((warrants['type'] == ft.WrtType.CALL) | (warrants['type'] == ft.WrtType.PUT)) & ((((warrants['high_price'] / warrants['low_price']) - 1) * 100) >= (abs(warrants['effective_leverage']) * self.encourage_factor))) |
+                                        ((warrants['low_price'] != 0) & ((warrants['type'] != ft.WrtType.CALL) & (warrants['type'] != ft.WrtType.PUT)) & ((((warrants['high_price'] / warrants['low_price']) - 1) * 100) >= (warrants['leverage'] * self.encourage_factor)))) &
+                                       (((warrants['type'] == ft.WrtType.CALL) & self.enable_call) |
+                                        ((warrants['type'] == ft.WrtType.PUT) & self.enable_put) |
+                                        ((warrants['type'] == ft.WrtType.BULL) & self.enable_bull) |
+                                        ((warrants['type'] == ft.WrtType.BEAR) & self.enable_bear)) &
+                                       ((((warrants['type'] == ft.WrtType.CALL) | (warrants['type'] == ft.WrtType.PUT)) & (abs(warrants['effective_leverage']) >= self.leverage_ratio_min)) |
+                                        (((warrants['type'] != ft.WrtType.CALL) & (warrants['type'] != ft.WrtType.PUT)) & (warrants['leverage'] >= self.leverage_ratio_min))) &
+                                       ((((warrants['type'] == ft.WrtType.CALL) | (warrants['type'] == ft.WrtType.PUT)) & (abs(warrants['effective_leverage']) <= self.leverage_ratio_max)) |
+                                        (((warrants['type'] != ft.WrtType.CALL) & (warrants['type'] != ft.WrtType.PUT)) & (warrants['leverage'] <= self.leverage_ratio_max)))]
+
+            if len(favourables) > 0:
+                # favourables.to_csv('C:/temp/result/favourables_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
+
+                most_favourable = favourables.loc[favourables['volume'].idxmax()]
+                # most_favourable.to_csv('C:/temp/result/favourables_max_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=False)
+        except Exception as e:
+            print('Get warrants failed')
+            print(e)
+        finally:
+            time.sleep(3)
+
+        return most_favourable
+
+    def enable_existing_code(self, updated_codes, most_favourable, code_enabled):
+        existed_code_with_position = updated_codes.loc[(updated_codes['code'] == most_favourable['stock']) & (updated_codes['enable'] == 'yes')]
+        existed_code_without_position = updated_codes.loc[(updated_codes['code'] == most_favourable['stock']) & (updated_codes['enable'] == 'no')]
+
+        if len(existed_code_with_position) > 0:
+            leverage = most_favourable['effective_leverage'] if most_favourable['type'] == ft.WrtType.CALL or most_favourable['type'] == ft.WrtType.PUT else most_favourable['leverage']
+            leverage = abs(leverage)
+
+            updated_codes.loc[updated_codes['code'] == most_favourable['stock'], 'neg_to_liquidate'] = leverage * self.liquidate_factor
+            updated_codes.loc[updated_codes['code'] == most_favourable['stock'], 'pos_to_liquidate'] = leverage * self.liquidate_factor
+            updated_codes.loc[updated_codes['code'] == most_favourable['stock'], 'not_dare_to_buy'] = leverage * self.dare_factor
+            updated_codes.loc[updated_codes['code'] == most_favourable['stock'], 'not_dare_to_sell'] = leverage * self.dare_factor
+            updated_codes.loc[updated_codes['code'] == most_favourable['stock'], 'leverage'] = leverage
+
+        if len(existed_code_without_position) > 0:
+            algo.Code.logger.info('Enable code: {} ({})'.format(most_favourable['stock'], most_favourable['name']))
+
+            leverage = most_favourable['effective_leverage'] if most_favourable['type'] == ft.WrtType.CALL or most_favourable['type'] == ft.WrtType.PUT else most_favourable['leverage']
+            leverage = abs(leverage)
+
+            updated_codes.loc[updated_codes['code'] == most_favourable['stock'], 'trade_env'] = self.default_trade_env
+            updated_codes.loc[updated_codes['code'] == most_favourable['stock'], 'strategy'] = self.default_strategy
+            updated_codes.loc[updated_codes['code'] == most_favourable['stock'], 'enable'] = 'yes'
+            updated_codes.loc[updated_codes['code'] == most_favourable['stock'], 'force_to_liquidate'] = 'no'
+            updated_codes.loc[updated_codes['code'] == most_favourable['stock'], 'neg_to_liquidate'] = leverage * self.liquidate_factor
+            updated_codes.loc[updated_codes['code'] == most_favourable['stock'], 'pos_to_liquidate'] = leverage * self.liquidate_factor
+            updated_codes.loc[updated_codes['code'] == most_favourable['stock'], 'not_dare_to_buy'] = leverage * self.dare_factor
+            updated_codes.loc[updated_codes['code'] == most_favourable['stock'], 'not_dare_to_sell'] = leverage * self.dare_factor
+            updated_codes.loc[updated_codes['code'] == most_favourable['stock'], 'leverage'] = leverage
+
+            code_enabled += 1
+
+        return updated_codes, code_enabled, existed_code_with_position, existed_code_without_position
+
+    def add_new_code(self, updated_codes, most_favourable, code_enabled):
+        algo.Code.logger.info('Add code: {} ({})'.format(most_favourable['stock'], most_favourable['name']))
+
+        amount_per_lot = most_favourable['cur_price'] * most_favourable['lot_size']
+        lot_for_trade = (self.amt_to_trade // amount_per_lot) + 1
+        leverage = most_favourable['effective_leverage'] if most_favourable['type'] == ft.WrtType.CALL or most_favourable['type'] == ft.WrtType.PUT else most_favourable['leverage']
+        leverage = abs(leverage)
+
+        updated_codes = updated_codes.append({
+            'trade_env': self.default_trade_env,
+            'code': most_favourable['stock'],
+            'name': most_favourable['name'],
+            'lot_size': most_favourable['lot_size'],
+            'start': 'today',
+            'end': 'today',
+            'qty_to_buy': lot_for_trade * most_favourable['lot_size'],
+            'enable': 'yes',
+            'short_sell_enable': 'no',
+            'qty_to_sell': lot_for_trade * most_favourable['lot_size'],
+            'force_to_liquidate': 'no',
+            'strategy': self.default_strategy,
+            'neg_to_liquidate': leverage * self.liquidate_factor,
+            'pos_to_liquidate': leverage * self.liquidate_factor,
+            'not_dare_to_buy': leverage * self.dare_factor,
+            'not_dare_to_sell': leverage * self.dare_factor,
+            'leverage': leverage
+        }, ignore_index=True)
+
+        code_enabled += 1
+
+        return updated_codes, code_enabled
+
+    def update_codes(self):
+        code_list = algo.Code.refresh_code_list()
+
+        updated_codes, code_enabled = self.refresh_existing_codes()
 
         for code in code_list:
             if code_enabled >= self.code_limit:
@@ -249,100 +371,29 @@ class Code(object):
 
                 break
 
-            try:
-                ret_code, warrant = algo.Quote.get_warrant(self.quote_ctx, code, self.leverage_ratio_min, self.leverage_ratio_max)
-                # warrant[0].to_csv('C:/temp/result/warrant_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
+            ''''''
+            most_favourable = self.get_most_favourable(code, updated_codes, 'yes')
 
-                favourables = warrant[0].loc[(warrant[0]['status'] == ft.WarrantStatus.NORMAL) &
-                                             (warrant[0]['volume'] != 0) &
-                                             (((warrant[0]['price_change_val'] > 0) & (self.price_change_val > 0)) |
-                                              (True & (self.price_change_val == 0)) |
-                                              ((warrant[0]['price_change_val'] < 0) & (self.price_change_val < 0))) &
-                                             (((warrant[0]['low_price'] != 0) & ((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & ((((warrant[0]['high_price'] / warrant[0]['low_price']) - 1) * 100) >= (abs(warrant[0]['effective_leverage']) * self.encourage_factor))) |
-                                              ((warrant[0]['low_price'] != 0) & ((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & ((((warrant[0]['high_price'] / warrant[0]['low_price']) - 1) * 100) >= (warrant[0]['leverage'] * self.encourage_factor)))) &
-                                             (((warrant[0]['type'] == ft.WrtType.CALL) & self.enable_call) |
-                                              ((warrant[0]['type'] == ft.WrtType.PUT) & self.enable_put) |
-                                              ((warrant[0]['type'] == ft.WrtType.BULL) & self.enable_bull) |
-                                              ((warrant[0]['type'] == ft.WrtType.BEAR) & self.enable_bear)) &
-                                             ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (abs(warrant[0]['effective_leverage']) >= self.leverage_ratio_min)) |
-                                              (((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & (warrant[0]['leverage'] >= self.leverage_ratio_min))) &
-                                             ((((warrant[0]['type'] == ft.WrtType.CALL) | (warrant[0]['type'] == ft.WrtType.PUT)) & (abs(warrant[0]['effective_leverage']) <= self.leverage_ratio_max)) |
-                                              (((warrant[0]['type'] != ft.WrtType.CALL) & (warrant[0]['type'] != ft.WrtType.PUT)) & (warrant[0]['leverage'] <= self.leverage_ratio_max)))]
+            if most_favourable is not None:
+                updated_codes, code_enabled, existed_code_with_position, existed_code_without_position = self.enable_existing_code(updated_codes, most_favourable, code_enabled)
 
-                if len(favourables) > 0:
-                    # favourables.to_csv('C:/temp/result/favourables_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
+                if len(existed_code_without_position) > 0:
+                    if code_enabled >= self.code_limit:
+                        algo.Code.logger.info('Code enabled reached limits: {} >= {}'.format(code_enabled, self.code_limit))
 
-                    favourables_max = favourables.loc[favourables['volume'].idxmax()]
-                    # favourables_max.to_csv('C:/temp/result/favourables_max_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=False)
+                        break
+            ''''''
 
-                    if updated_codes['code'].str.contains(favourables_max['stock']).any():
-                        existed_code_without_position = updated_codes.loc[(updated_codes['code'] == favourables_max['stock']) & (updated_codes['enable'] == 'no')]
-                        existed_code_with_position = updated_codes.loc[(updated_codes['code'] == favourables_max['stock']) & (updated_codes['enable'] == 'yes')]
+            most_favourable = self.get_most_favourable(code, updated_codes, 'no')
 
-                        if len(existed_code_without_position) > 0:
-                            algo.Code.logger.info('Enable code: {} ({})'.format(favourables_max['stock'], favourables_max['name']))
+            if most_favourable is not None:
+                if updated_codes['code'].str.contains(most_favourable['stock']).any():
+                    updated_codes, code_enabled, existed_code_with_position, existed_code_without_position = self.enable_existing_code(updated_codes, most_favourable, code_enabled)
+                else:
+                    updated_codes, code_enabled = self.add_new_code(updated_codes, most_favourable, code_enabled)
 
-                            leverage = favourables_max['effective_leverage'] if favourables_max['type'] == ft.WrtType.CALL or favourables_max['type'] == ft.WrtType.PUT else favourables_max['leverage']
-                            leverage = abs(leverage)
-
-                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'trade_env'] = self.default_trade_env
-                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'strategy'] = self.default_strategy
-                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'enable'] = 'yes'
-                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'force_to_liquidate'] = 'no'
-                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'neg_to_liquidate'] = leverage * self.liquidate_factor
-                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'pos_to_liquidate'] = leverage * self.liquidate_factor
-                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'not_dare_to_buy'] = leverage * self.dare_factor
-                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'not_dare_to_sell'] = leverage * self.dare_factor
-                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'leverage'] = leverage
-
-                            code_enabled += 1
-
-                        if len(existed_code_with_position) > 0:
-                            leverage = favourables_max['effective_leverage'] if favourables_max['type'] == ft.WrtType.CALL or favourables_max['type'] == ft.WrtType.PUT else favourables_max['leverage']
-                            leverage = abs(leverage)
-
-                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'neg_to_liquidate'] = leverage * self.liquidate_factor
-                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'pos_to_liquidate'] = leverage * self.liquidate_factor
-                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'not_dare_to_buy'] = leverage * self.dare_factor
-                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'not_dare_to_sell'] = leverage * self.dare_factor
-                            updated_codes.loc[updated_codes['code'] == favourables_max['stock'], 'leverage'] = leverage
-                    else:
-                        algo.Code.logger.info('Add code: {} ({})'.format(favourables_max['stock'], favourables_max['name']))
-
-                        amount_per_lot = favourables_max['cur_price'] * favourables_max['lot_size']
-                        lot_for_trade = (self.amt_to_trade // amount_per_lot) + 1
-                        leverage = favourables_max['effective_leverage'] if favourables_max['type'] == ft.WrtType.CALL or favourables_max['type'] == ft.WrtType.PUT else favourables_max['leverage']
-                        leverage = abs(leverage)
-
-                        updated_codes = updated_codes.append({
-                            'trade_env': self.default_trade_env,
-                            'code': favourables_max['stock'],
-                            'name': favourables_max['name'],
-                            'lot_size': favourables_max['lot_size'],
-                            'start': 'today',
-                            'end': 'today',
-                            'qty_to_buy': lot_for_trade * favourables_max['lot_size'],
-                            'enable': 'yes',
-                            'short_sell_enable': 'no',
-                            'qty_to_sell': lot_for_trade * favourables_max['lot_size'],
-                            'force_to_liquidate': 'no',
-                            'strategy': self.default_strategy,
-                            'neg_to_liquidate': leverage * self.liquidate_factor,
-                            'pos_to_liquidate': leverage * self.liquidate_factor,
-                            'not_dare_to_buy': leverage * self.dare_factor,
-                            'not_dare_to_sell': leverage * self.dare_factor,
-                            'leverage': leverage
-                        }, ignore_index=True)
-
-                        code_enabled += 1
-
-            except Exception as e:
-                print('get_warrant failed')
-                print(e)
-            finally:
-                time.sleep(3)
-
-        updated_codes.to_csv('C:/temp/code.csv', float_format='%f', index=False)
+        # updated_codes.to_csv('C:/temp/code.csv', float_format='%f', index=False)
+        updated_codes.to_sql('codes', algo.Code.engine, index=False, if_exists='replace')
 
         print(updated_codes)
 
@@ -639,5 +690,3 @@ class Code(object):
             self.roll_code()
 
         year_result.to_csv('C:/temp/result/year_result_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
-
-

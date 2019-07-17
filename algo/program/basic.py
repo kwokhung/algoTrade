@@ -8,10 +8,13 @@ import matplotlib.pyplot as plt
 import mpl_finance as mpf
 import talib
 import logging
+from sqlalchemy import create_engine
 
 
 class Program(object):
     logger = logging.getLogger('algoTrade')
+
+    engine = create_engine('mysql://algotrade:12345678@127.0.0.1:3306/algotrade?charset=utf8')
 
     @staticmethod
     def chart(fig, code, klines, sma_parameter1, sma_parameter2, sma_parameter3, macd_parameter1, macd_parameter2, macd_parameter3):
@@ -393,7 +396,8 @@ class Program(object):
             pl_ratio = 0.0
 
         try:
-            p_l = pd.read_csv('C:/temp/pl.csv')
+            # p_l = pd.read_csv('C:/temp/pl.csv')
+            p_l = pd.read_sql('pl', algo.Program.engine)
 
             prev_highest_p_l = p_l.loc[p_l['code'] == code, 'highest p&l']
 
@@ -449,7 +453,8 @@ class Program(object):
                     'lowest p&l': new_lowest_p_l
                 }, ignore_index=True)
 
-            p_l.to_csv('C:/temp/pl.csv', float_format='%f', index=False)
+            # p_l.to_csv('C:/temp/pl.csv', float_format='%f', index=False)
+            p_l.to_sql('pl', algo.Program.engine, index=False, if_exists='replace')
 
             print(p_l)
         except KeyError as error:
@@ -458,7 +463,8 @@ class Program(object):
     @staticmethod
     def get_p_l(code):
         try:
-            p_l = pd.read_csv('C:/temp/pl.csv')
+            # p_l = pd.read_csv('C:/temp/pl.csv')
+            p_l = pd.read_sql('pl', algo.Program.engine)
 
             prev_highest_p_l = p_l.loc[p_l['code'] == code, 'highest p&l']
 
