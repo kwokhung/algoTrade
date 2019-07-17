@@ -4,8 +4,8 @@ from flask_mysqldb import MySQL
 app = Flask(__name__)
 
 app.config['MYSQL_HOST'] = 'localhost'
-app.config['MYSQL_USER'] = 'kwokhung'
-app.config['MYSQL_PASSWORD'] = 'chu9999'
+app.config['MYSQL_USER'] = 'algotrade'
+app.config['MYSQL_PASSWORD'] = '12345678'
 app.config['MYSQL_DB'] = 'algotrade'
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
