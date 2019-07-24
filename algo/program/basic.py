@@ -9,6 +9,7 @@ import mpl_finance as mpf
 import talib
 import logging
 from sqlalchemy import create_engine
+from firebase_admin import messaging
 
 
 class Program(object):
@@ -89,6 +90,32 @@ class Program(object):
         plt.xlabel('Time (Min)')
 
         return sma_1, sma_2, sma_3, macd, signal, hist
+
+    @staticmethod
+    def send_to_topic():
+        topic = 'people'
+
+        message = messaging.Message(
+            notification=messaging.Notification(
+                title='Algo Trade Alert',
+                body='This alert is sent from algoTrade.py.'
+            ),
+            data={
+                'landing_page': 'second',
+                'price': '$1,234.56'
+            },
+            android=messaging.AndroidConfig(
+                priority='high',
+                notification=messaging.AndroidNotification(
+                    icon='fcm_push_icon'
+                )
+            ),
+            topic=topic
+        )
+
+        response = messaging.send(message)
+
+        print('Successfully sent message:', response)
 
     @staticmethod
     def trade(quote_ctx, trade_ctx, trade_env, is_time_to_stop_trade, is_time_to_liquidate, code, qty_to_buy, short_sell_enable, qty_to_sell, strategy, neg_to_liquidate, pos_to_liquidate, not_dare_to_buy, not_dare_to_sell, encourage_factor, time_key, close, prev_close_price, macd, signal, sma_1, sma_2):
@@ -244,7 +271,7 @@ class Program(object):
                                     'sma_2': sma_2, 'sma_3': sma_3, 'action': action, 'position': position, 'p&l': p_l,
                                     'cumulated p&l': cumulated_p_l, 'highest p&l': highest_p_l, 'lowest p&l': lowest_p_l, 'realized p&l': realized_p_l})
         print(test_result.tail(1))
-        test_result.to_csv('C:/temp/result/{}_result_{}.csv'.format(code, time.strftime("%Y%m%d%H%M%S")), float_format='%f')
+        test_result.to_csv('C:/temp/result/{}_result_{}.csv'.format(code, time.strftime('%Y%m%d%H%M%S')), float_format='%f')
 
         return test_result
 
@@ -322,7 +349,7 @@ class Program(object):
         return False
 
     @staticmethod
-    def need_to_cut_loss(trade_ctx, trade_env, code, neg_to_liquidate, time_key, last_close, prev_close_price):
+    def get_current_status(trade_ctx, trade_env, code):
         positions = algo.Trade.get_positions(trade_ctx, trade_env, code)
 
         try:
@@ -334,6 +361,14 @@ class Program(object):
         except KeyError:
             qty = 0
             pl_ratio = 0.0
+
+        algo.Program.logger.info('qty ({}) / pl_ratio ({})'.format(qty, pl_ratio))
+
+        return qty, pl_ratio
+
+    @staticmethod
+    def need_to_cut_loss(trade_ctx, trade_env, code, neg_to_liquidate, time_key, last_close, prev_close_price):
+        qty, pl_ratio = algo.Program.get_current_status(trade_ctx, trade_env, code)
 
         if qty > 0 and last_close < prev_close_price and pl_ratio < -(neg_to_liquidate * 0.5):
             algo.Program.logger.info('{}: Need to cut loss quick after drop below previous close: {} < -{} ({})'.format(time_key, pl_ratio, (neg_to_liquidate * 0.5), code))
@@ -352,17 +387,7 @@ class Program(object):
 
     @staticmethod
     def need_to_cut_profit(trade_ctx, trade_env, code, pos_to_liquidate, time_key):
-        positions = algo.Trade.get_positions(trade_ctx, trade_env, code)
-
-        try:
-            qty = int(positions['qty'])
-            pl_ratio = float(positions['pl_ratio'])
-        except TypeError:
-            qty = 0
-            pl_ratio = 0.0
-        except KeyError:
-            qty = 0
-            pl_ratio = 0.0
+        qty, pl_ratio = algo.Program.get_current_status(trade_ctx, trade_env, code)
 
         highest_p_l, lowest_p_l = algo.Program.get_p_l(code)
 
@@ -383,17 +408,7 @@ class Program(object):
 
     @staticmethod
     def update_p_l(trade_ctx, trade_env, code):
-        positions = algo.Trade.get_positions(trade_ctx, trade_env, code)
-
-        try:
-            qty = int(positions['qty'])
-            pl_ratio = float(positions['pl_ratio'])
-        except TypeError:
-            qty = 0
-            pl_ratio = 0.0
-        except KeyError:
-            qty = 0
-            pl_ratio = 0.0
+        qty, pl_ratio = algo.Program.get_current_status(trade_ctx, trade_env, code)
 
         try:
             # p_l = pd.read_csv('C:/temp/pl.csv')
@@ -456,8 +471,8 @@ class Program(object):
             # p_l.to_csv('C:/temp/pl.csv', float_format='%f', index=False)
             p_l.to_sql('pl', algo.Program.engine, index=False, if_exists='replace')
 
-            print(p_l)
-        except KeyError as error:
+            # print(p_l)
+        except Exception as error:
             algo.Program.logger.info('update_p_l failed ({})'.format(error))
 
     @staticmethod
@@ -475,7 +490,7 @@ class Program(object):
             lowest_p_l = prev_lowest_p_l.iloc[0] if len(prev_lowest_p_l) > 0 else 0
 
             algo.Program.logger.info('{} / {}'.format(highest_p_l, lowest_p_l))
-        except KeyError as error:
+        except Exception as error:
             algo.Program.logger.info('get_p_l failed ({})'.format(error))
 
         return highest_p_l, lowest_p_l
@@ -648,6 +663,8 @@ class Program(object):
 
     @staticmethod
     def dare_to_buy_l(i, time_key, close, prev_close_price, not_dare_to_buy, encourage_factor):
+        # algo.Program.send_to_topic()
+
         if close[i] < close[i - 1] or \
                 close[i - 1] < close[i - 2] or \
                 close[i - 2] <= close[i - 3]:
@@ -988,8 +1005,8 @@ class Program(object):
                 algo.Trade.buy(trade_ctx, trade_env, code, buy_qty, last_price)
             else:
                 algo.Program.logger.info('{}: Position is full: {} >= {}'.format(time_key, position, qty_to_buy))
-        except Exception as e:
-            print(e)
+        except Exception as error:
+            algo.Program.logger.info('suggest_buy failed ({})'.format(error))
 
     @staticmethod
     def suggest_sell(quote_ctx, trade_ctx, trade_env, code, short_sell_enable, qty_to_sell, time_key):
@@ -1013,8 +1030,8 @@ class Program(object):
                 algo.Trade.sell(trade_ctx, trade_env, code, sell_qty, last_price)
             else:
                 algo.Program.logger.info('{}: Position is full: {} <= -{}'.format(time_key, position, qty_to_sell))
-        except Exception as e:
-            print(e)
+        except Exception as error:
+            algo.Program.logger.info('suggest_sell failed ({})'.format(error))
 
     @staticmethod
     def force_to_liquidate(quote_ctx, trade_ctx, trade_env, code, time_key, i):
@@ -1037,6 +1054,6 @@ class Program(object):
                 algo.Trade.buy(trade_ctx, trade_env, code, position, last_price)
             else:
                 algo.Program.logger.info('{} ({}): Position is zero'.format(time_key, i))
-        except Exception as e:
-            print(e)
+        except Exception as error:
+            algo.Program.logger.info('force_to_liquidate failed ({})'.format(error))
 

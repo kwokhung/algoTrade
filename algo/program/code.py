@@ -11,6 +11,8 @@ from watchdog.events import PatternMatchingEventHandler
 import logging
 import logging.config
 from sqlalchemy import create_engine
+import firebase_admin
+from firebase_admin import credentials
 
 
 class Code(object):
@@ -72,6 +74,8 @@ class Code(object):
         logging.config.fileConfig('C:/temp/log/logging.config')
         algo.Code.logger = logging.getLogger('algoTrade')
         algo.Code.logger.info('algoTrade init')
+
+        firebase_admin.initialize_app(credentials.Certificate('firebase-adminsdk.json'))
 
         self.get_config()
         self.quote_ctx, self.hk_trade_ctx, self.hkcc_trade_ctx, self.us_trade_ctx = algo.Helper.context_setting(self.api_svr_ip, self.api_svr_port, self.unlock_password)
@@ -286,9 +290,8 @@ class Code(object):
 
                 most_favourable = favourables.loc[favourables['volume'].idxmax()]
                 # most_favourable.to_csv('C:/temp/result/favourables_max_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=False)
-        except Exception as e:
-            print('Get warrants failed')
-            print(e)
+        except Exception as error:
+            algo.Code.logger.info('get_most_favourable failed ({})'.format(error))
         finally:
             time.sleep(3)
 
@@ -428,8 +431,8 @@ class Code(object):
                     options_snapshot = options_snapshot.append(c[1])
 
                 time.sleep(3)
-            except TypeError as e:
-                print(e)
+            except Exception as error:
+                algo.Code.logger.info('update_us_codes failed ({})'.format(error))
 
         options_snapshot.to_csv('C:/temp/{}_options_snapshot.csv'.format('US.BABA'), float_format='%f')
 
@@ -507,8 +510,8 @@ class Code(object):
                                                                                  self.macd_parameters[0],
                                                                                  self.macd_parameters[1],
                                                                                  self.macd_parameters[2])
-            except TypeError:
-                print('get_kline failed')
+            except Exception as error:
+                algo.Code.logger.info('animate failed ({})'.format(error))
 
         self.roll_code()
 
@@ -568,8 +571,8 @@ class Code(object):
                                                signal,
                                                sma_1,
                                                sma_2)
-                except TypeError as error:
-                    print('get_kline failed ({})'.format(error))
+                except Exception as error:
+                    algo.Code.logger.info('trade failed ({})'.format(error))
 
                 time.sleep(3)
 
@@ -612,8 +615,8 @@ class Code(object):
                                           self.sma_parameters[0],
                                           self.sma_parameters[1],
                                           self.sma_parameters[2])
-                except TypeError:
-                    print('get_kline failed')
+                except Exception as error:
+                    algo.Code.logger.info('test failed ({})'.format(error))
 
                 time.sleep(3)
 
@@ -679,8 +682,8 @@ class Code(object):
 
                             realized_p_l = test_result['realized p&l'].iloc[-1]
                             code_column.loc[len(code_column)] = [realized_p_l]
-                    except TypeError:
-                        print('get_kline failed')
+                    except Exception as error:
+                        algo.Code.logger.info('test_year failed ({})'.format(error))
 
                     time.sleep(3)
 
