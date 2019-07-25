@@ -270,7 +270,9 @@ class Program(object):
                                     'signal': signal, 'hist': hist, 'sma_1': sma_1,
                                     'sma_2': sma_2, 'sma_3': sma_3, 'action': action, 'position': position, 'p&l': p_l,
                                     'cumulated p&l': cumulated_p_l, 'highest p&l': highest_p_l, 'lowest p&l': lowest_p_l, 'realized p&l': realized_p_l})
+
         print(test_result.tail(1))
+
         test_result.to_csv('C:/temp/result/{}_result_{}.csv'.format(code, time.strftime('%Y%m%d%H%M%S')), float_format='%f')
 
         return test_result
@@ -362,8 +364,6 @@ class Program(object):
             qty = 0
             pl_ratio = 0.0
 
-        algo.Program.logger.info('qty ({}) / pl_ratio ({})'.format(qty, pl_ratio))
-
         return qty, pl_ratio
 
     @staticmethod
@@ -407,8 +407,29 @@ class Program(object):
         return False
 
     @staticmethod
+    def init_p_l():
+        try:
+            codes = pd.read_sql('codes', algo.Program.engine)
+
+            p_l = pd.read_sql('pl', algo.Program.engine)
+
+            length = len(p_l)
+
+            for index in range(0, length):
+                if p_l.loc[index, 'code'] not in list(codes['code']):
+                    p_l = p_l.drop(index)
+
+            p_l = p_l.reset_index(drop=True)
+
+            p_l.to_sql('pl', algo.Program.engine, index=False, if_exists='replace')
+        except Exception as error:
+            algo.Program.logger.info('init_p_l failed ({})'.format(error))
+
+    @staticmethod
     def update_p_l(trade_ctx, trade_env, code):
         qty, pl_ratio = algo.Program.get_current_status(trade_ctx, trade_env, code)
+
+        algo.Program.logger.info('qty ({}) / pl_ratio ({})'.format(qty, pl_ratio))
 
         try:
             # p_l = pd.read_csv('C:/temp/pl.csv')

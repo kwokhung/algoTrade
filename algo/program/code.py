@@ -117,6 +117,8 @@ class Code(object):
         print(algo.Code.code_list)
         algo.Code.code_list.to_csv('C:/temp/result/code_list_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=True)
 
+        algo.Program.init_p_l()
+
     def __del__(self):
         if self.quote_ctx is not None:
             self.quote_ctx.close()
