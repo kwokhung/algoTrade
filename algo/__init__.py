@@ -3,8 +3,8 @@ from algo.helper.hello import *
 from algo.helper.basic import *
 from algo.quote import *
 from algo.quote.basic import *
-from algo.program.code import *
 from algo.trade import *
 from algo.trade.basic import *
 from algo.program import *
 from algo.program.basic import *
+from algo.program.code import *

@@ -8,11 +8,7 @@ import talib
 import algo
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
-import logging
-import logging.config
 from sqlalchemy import create_engine
-import firebase_admin
-from firebase_admin import credentials
 
 
 class Code(object):
@@ -71,11 +67,7 @@ class Code(object):
     engine = create_engine('mysql://algotrade:12345678@127.0.0.1:3306/algotrade?charset=utf8')
 
     def __init__(self):
-        logging.config.fileConfig('C:/temp/log/logging.config')
-        algo.Code.logger = logging.getLogger('algoTrade')
-        algo.Code.logger.info('algoTrade init')
-
-        firebase_admin.initialize_app(credentials.Certificate('firebase-adminsdk.json'))
+        algo.Helper.log_info('algoTrade init', to_notify=True)
 
         self.get_config()
         self.quote_ctx, self.hk_trade_ctx, self.hkcc_trade_ctx, self.us_trade_ctx = algo.Helper.context_setting(self.api_svr_ip, self.api_svr_port, self.unlock_password)
@@ -110,12 +102,14 @@ class Code(object):
         self.my_observer.start()
 
         ret_code, plate_stock = algo.Quote.get_plate_stock(self.quote_ctx, 'HK.HSI Constituent')
-        print(plate_stock)
-        plate_stock.to_csv('C:/temp/result/plate_stock_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
+        # print(plate_stock)
+        # plate_stock.to_csv('C:/temp/result/plate_stock_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
+        plate_stock.to_sql('plate_stock', algo.Code.engine, index=True, if_exists='replace')
 
         algo.Code.code_list = plate_stock['code']
-        print(algo.Code.code_list)
-        algo.Code.code_list.to_csv('C:/temp/result/code_list_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=True)
+        # print(algo.Code.code_list)
+        # algo.Code.code_list.to_csv('C:/temp/result/code_list_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=True)
+        algo.Code.code_list.to_sql('code_list', algo.Code.engine, index=True, if_exists='replace')
 
         algo.Program.init_p_l()
 
@@ -249,7 +243,7 @@ class Code(object):
                 updated_codes.loc[index, 'enable'] = 'no'
                 # updated_codes.loc[index, 'force_to_liquidate'] = 'no'
             else:
-                algo.Code.logger.info('Monitor code: {} ({})'.format(row['code'], row['name']))
+                algo.Helper.log_info('Monitor code: {} ({})'.format(row['code'], row['name']), to_notify=True)
 
                 # updated_codes.loc[index, 'trade_env'] = self.default_trade_env
                 updated_codes.loc[index, 'enable'] = 'yes'
@@ -293,7 +287,7 @@ class Code(object):
                 most_favourable = favourables.loc[favourables['volume'].idxmax()]
                 # most_favourable.to_csv('C:/temp/result/favourables_max_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=False)
         except Exception as error:
-            algo.Code.logger.info('get_most_favourable failed ({})'.format(error))
+            algo.Helper.log_info('get_most_favourable failed ({})'.format(error))
         finally:
             time.sleep(3)
 
@@ -314,7 +308,7 @@ class Code(object):
             updated_codes.loc[updated_codes['code'] == most_favourable['stock'], 'leverage'] = leverage
 
         if len(existed_code_without_position) > 0:
-            algo.Code.logger.info('Enable code: {} ({})'.format(most_favourable['stock'], most_favourable['name']))
+            algo.Helper.log_info('Enable code: {} ({})'.format(most_favourable['stock'], most_favourable['name']), to_notify=True)
 
             leverage = most_favourable['effective_leverage'] if most_favourable['type'] == ft.WrtType.CALL or most_favourable['type'] == ft.WrtType.PUT else most_favourable['leverage']
             leverage = abs(leverage)
@@ -334,7 +328,7 @@ class Code(object):
         return updated_codes, code_enabled, existed_code_with_position, existed_code_without_position
 
     def add_new_code(self, updated_codes, most_favourable, code_enabled):
-        algo.Code.logger.info('Add code: {} ({})'.format(most_favourable['stock'], most_favourable['name']))
+        algo.Helper.log_info('Add code: {} ({})'.format(most_favourable['stock'], most_favourable['name']), to_notify=True)
 
         amount_per_lot = most_favourable['cur_price'] * most_favourable['lot_size']
         lot_for_trade = (self.amt_to_trade // amount_per_lot) + 1
@@ -372,7 +366,7 @@ class Code(object):
 
         for code in code_list:
             if code_enabled >= self.code_limit:
-                algo.Code.logger.info('Code enabled reached limits: {} >= {}'.format(code_enabled, self.code_limit))
+                algo.Helper.log_info('Code enabled reached limits: {} >= {}'.format(code_enabled, self.code_limit))
 
                 break
 
@@ -384,7 +378,7 @@ class Code(object):
 
                 if len(existed_code_without_position) > 0:
                     if code_enabled >= self.code_limit:
-                        algo.Code.logger.info('Code enabled reached limits: {} >= {}'.format(code_enabled, self.code_limit))
+                        algo.Helper.log_info('Code enabled reached limits: {} >= {}'.format(code_enabled, self.code_limit))
 
                         break
             ''''''
@@ -434,7 +428,7 @@ class Code(object):
 
                 time.sleep(3)
             except Exception as error:
-                algo.Code.logger.info('update_us_codes failed ({})'.format(error))
+                algo.Helper.log_info('update_us_codes failed ({})'.format(error))
 
         options_snapshot.to_csv('C:/temp/{}_options_snapshot.csv'.format('US.BABA'), float_format='%f')
 
@@ -443,6 +437,9 @@ class Code(object):
 
         if self.code_index == self.code_length:
             self.code_index = 0
+
+        if self.code_length == 0:
+            return
 
         self.trade_env = self.codes['trade_env'][self.code_index]
 
@@ -513,7 +510,7 @@ class Code(object):
                                                                                  self.macd_parameters[1],
                                                                                  self.macd_parameters[2])
             except Exception as error:
-                algo.Code.logger.info('animate failed ({})'.format(error))
+                algo.Helper.log_info('animate failed ({})'.format(error))
 
         self.roll_code()
 
@@ -574,7 +571,7 @@ class Code(object):
                                                sma_1,
                                                sma_2)
                 except Exception as error:
-                    algo.Code.logger.info('trade failed ({})'.format(error))
+                    algo.Helper.log_info('trade failed ({})'.format(error))
 
                 time.sleep(3)
 
@@ -618,7 +615,7 @@ class Code(object):
                                           self.sma_parameters[1],
                                           self.sma_parameters[2])
                 except Exception as error:
-                    algo.Code.logger.info('test failed ({})'.format(error))
+                    algo.Helper.log_info('test failed ({})'.format(error))
 
                 time.sleep(3)
 
@@ -629,8 +626,8 @@ class Code(object):
     def test_year(self):
         # algo.Code.update_us_codes(self)
 
-        start = '2019-06-01'
-        # start = 'today'
+        # start = '2019-06-01'
+        start = 'today'
 
         if start == 'today':
             start = time.strftime("%Y-%m-%d")
@@ -685,7 +682,7 @@ class Code(object):
                             realized_p_l = test_result['realized p&l'].iloc[-1]
                             code_column.loc[len(code_column)] = [realized_p_l]
                     except Exception as error:
-                        algo.Code.logger.info('test_year failed ({})'.format(error))
+                        algo.Helper.log_info('test_year failed ({})'.format(error))
 
                     time.sleep(3)
 

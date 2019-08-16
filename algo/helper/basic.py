@@ -1,7 +1,52 @@
 import futu as ft
+import algo
+import datetime
+import logging.config
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import messaging
 
 
 class Helper(object):
+    logger = None
+
+    logging.config.fileConfig('C:/temp/log/logging.config')
+    logger = logging.getLogger('algoTrade')
+
+    firebase_admin.initialize_app(credentials.Certificate('firebase-adminsdk.json'))
+
+    @staticmethod
+    def log_info(text, to_notify=False, priority='normal'):
+        algo.Helper.logger.info(text)
+
+        if to_notify:
+            algo.Helper.send_to_topic('algoTrade', text, priority)
+
+    @staticmethod
+    def send_to_topic(topic, message, priority):
+        response = messaging.send(messaging.Message(
+            data={
+                'landing_page': 'second',
+                'time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'message': message
+            },
+            notification=messaging.Notification(
+                title='Notification',
+                body=message
+            ),
+            android=messaging.AndroidConfig(
+                priority=priority,
+                restricted_package_name='',
+                notification=messaging.AndroidNotification(
+                    icon='fcm_push_icon',
+                    sound='default',
+                    click_action='FCM_PLUGIN_ACTIVITY'
+                )
+            ),
+            topic=topic
+        ))
+
+        # print('Successfully sent message:', response)
 
     @staticmethod
     def context_setting(api_svr_ip, api_svr_port, unlock_password):
