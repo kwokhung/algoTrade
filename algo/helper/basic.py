@@ -5,15 +5,16 @@ import logging.config
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import messaging
+from sqlalchemy import create_engine
 
 
 class Helper(object):
-    logger = None
-
     logging.config.fileConfig('C:/temp/log/logging.config')
     logger = logging.getLogger('algoTrade')
 
     firebase_admin.initialize_app(credentials.Certificate('firebase-adminsdk.json'))
+
+    engine = create_engine('mysql://algotrade:12345678@127.0.0.1:3306/algotrade?charset=utf8')
 
     @staticmethod
     def log_info(text, to_notify=False, priority='normal'):

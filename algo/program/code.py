@@ -8,7 +8,6 @@ import talib
 import algo
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
-from sqlalchemy import create_engine
 
 
 class Code(object):
@@ -64,8 +63,6 @@ class Code(object):
     logger = None
     code_list = None
 
-    engine = create_engine('mysql://algotrade:12345678@127.0.0.1:3306/algotrade?charset=utf8')
-
     def __init__(self):
         algo.Helper.log_info('algoTrade init', to_notify=True)
 
@@ -104,12 +101,12 @@ class Code(object):
         ret_code, plate_stock = algo.Quote.get_plate_stock(self.quote_ctx, 'HK.HSI Constituent')
         # print(plate_stock)
         # plate_stock.to_csv('C:/temp/result/plate_stock_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f')
-        plate_stock.to_sql('plate_stock', algo.Code.engine, index=True, if_exists='replace')
+        plate_stock.to_sql('plate_stock', algo.Helper.engine, index=True, if_exists='replace')
 
         algo.Code.code_list = plate_stock['code']
         # print(algo.Code.code_list)
         # algo.Code.code_list.to_csv('C:/temp/result/code_list_{}.csv'.format(time.strftime("%Y%m%d%H%M%S")), float_format='%f', header=True)
-        algo.Code.code_list.to_sql('code_list', algo.Code.engine, index=True, if_exists='replace')
+        algo.Code.code_list.to_sql('code_list', algo.Helper.engine, index=True, if_exists='replace')
 
         algo.Program.init_p_l()
 
@@ -135,7 +132,7 @@ class Code(object):
 
     def get_config(self):
         # self.config = pd.read_csv('C:/temp/config.csv')
-        self.config = pd.read_sql('config', algo.Code.engine)
+        self.config = pd.read_sql('config', algo.Helper.engine)
         self.api_svr_ip = self.config['api_svr_ip'][0]
         self.api_svr_port = int(self.config['api_svr_port'][0])
         self.unlock_password = self.config['unlock_password'][0]
@@ -195,7 +192,7 @@ class Code(object):
 
     def get_codes(self):
         # self.codes = pd.read_csv('C:/temp/code.csv')
-        self.codes = pd.read_sql('codes', algo.Code.engine)
+        self.codes = pd.read_sql('codes', algo.Helper.engine)
         self.code_length = len(self.codes['code'])
         self.code_index = -1
 
@@ -392,7 +389,7 @@ class Code(object):
                     updated_codes, code_enabled = self.add_new_code(updated_codes, most_favourable, code_enabled)
 
         # updated_codes.to_csv('C:/temp/code.csv', float_format='%f', index=False)
-        updated_codes.to_sql('codes', algo.Code.engine, index=False, if_exists='replace')
+        updated_codes.to_sql('codes', algo.Helper.engine, index=False, if_exists='replace')
 
         print(updated_codes)
 

@@ -7,11 +7,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import mpl_finance as mpf
 import talib
-from sqlalchemy import create_engine
 
 
 class Program(object):
-    engine = create_engine('mysql://algotrade:12345678@127.0.0.1:3306/algotrade?charset=utf8')
 
     @staticmethod
     def chart(fig, code, klines, sma_parameter1, sma_parameter2, sma_parameter3, macd_parameter1, macd_parameter2, macd_parameter3):
@@ -379,9 +377,9 @@ class Program(object):
     @staticmethod
     def init_p_l():
         try:
-            codes = pd.read_sql('codes', algo.Program.engine)
+            codes = pd.read_sql('codes', algo.Helper.engine)
 
-            p_l = pd.read_sql('pl', algo.Program.engine)
+            p_l = pd.read_sql('pl', algo.Helper.engine)
 
             length = len(p_l)
 
@@ -391,7 +389,7 @@ class Program(object):
 
             p_l = p_l.reset_index(drop=True)
 
-            p_l.to_sql('pl', algo.Program.engine, index=False, if_exists='replace')
+            p_l.to_sql('pl', algo.Helper.engine, index=False, if_exists='replace')
         except Exception as error:
             algo.Helper.log_info('init_p_l failed ({})'.format(error))
 
@@ -403,7 +401,7 @@ class Program(object):
 
         try:
             # p_l = pd.read_csv('C:/temp/pl.csv')
-            p_l = pd.read_sql('pl', algo.Program.engine)
+            p_l = pd.read_sql('pl', algo.Helper.engine)
 
             prev_highest_p_l = p_l.loc[p_l['code'] == code, 'highest p&l']
 
@@ -460,7 +458,7 @@ class Program(object):
                 }, ignore_index=True)
 
             # p_l.to_csv('C:/temp/pl.csv', float_format='%f', index=False)
-            p_l.to_sql('pl', algo.Program.engine, index=False, if_exists='replace')
+            p_l.to_sql('pl', algo.Helper.engine, index=False, if_exists='replace')
 
             # print(p_l)
         except Exception as error:
@@ -470,7 +468,7 @@ class Program(object):
     def get_p_l(code):
         try:
             # p_l = pd.read_csv('C:/temp/pl.csv')
-            p_l = pd.read_sql('pl', algo.Program.engine)
+            p_l = pd.read_sql('pl', algo.Helper.engine)
 
             prev_highest_p_l = p_l.loc[p_l['code'] == code, 'highest p&l']
 
