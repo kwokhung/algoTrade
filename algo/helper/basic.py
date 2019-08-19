@@ -17,35 +17,53 @@ class Helper(object):
     engine = create_engine('mysql://algotrade:12345678@127.0.0.1:3306/algotrade?charset=utf8')
 
     @staticmethod
-    def log_info(text, to_notify=False, priority='normal'):
+    def log_info(text, to_notify=False, priority=None):
         algo.Helper.logger.info(text)
 
         if to_notify:
             algo.Helper.send_to_topic('algoTrade', text, priority)
 
     @staticmethod
-    def send_to_topic(topic, message, priority):
-        response = messaging.send(messaging.Message(
-            data={
-                'landing_page': 'second',
-                'time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'message': message
-            },
-            notification=messaging.Notification(
-                title='Notification',
-                body=message
-            ),
-            android=messaging.AndroidConfig(
-                priority=priority,
-                restricted_package_name='',
-                notification=messaging.AndroidNotification(
-                    icon='fcm_push_icon',
-                    sound='default',
-                    click_action='FCM_PLUGIN_ACTIVITY'
-                )
-            ),
-            topic=topic
-        ))
+    def send_to_topic(topic, message, priority=None):
+        if priority is None:
+            response = messaging.send(messaging.Message(
+                data={
+                    'landing_page': 'second',
+                    'time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'message': message
+                },
+                topic=topic
+            ))
+        else:
+            response = messaging.send(messaging.Message(
+                data={
+                    'landing_page': 'second',
+                    'time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'message': message
+                },
+                topic=topic
+            ))
+            response = messaging.send(messaging.Message(
+                data={
+                    'landing_page': 'second',
+                    'time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'message': message
+                },
+                notification=messaging.Notification(
+                    title='Notification',
+                    body=message
+                ),
+                android=messaging.AndroidConfig(
+                    priority=priority,
+                    restricted_package_name='',
+                    notification=messaging.AndroidNotification(
+                        icon='fcm_push_icon',
+                        sound='default',
+                        click_action='FCM_PLUGIN_ACTIVITY'
+                    )
+                ),
+                topic=topic
+            ))
 
         # print('Successfully sent message:', response)
 
