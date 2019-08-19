@@ -64,7 +64,7 @@ class Code(object):
     code_list = None
 
     def __init__(self):
-        algo.Helper.log_info('algoTrade init', to_notify=True)
+        algo.Helper.log_info('algoTrade init', to_notify=True, priority='high')
 
         self.get_config()
         self.quote_ctx, self.hk_trade_ctx, self.hkcc_trade_ctx, self.us_trade_ctx = algo.Helper.context_setting(self.api_svr_ip, self.api_svr_port, self.unlock_password)
@@ -234,6 +234,7 @@ class Code(object):
                                                           self.hkcc_trade_ctx,
                                                           self.us_trade_ctx,
                                                           row['code'])
+
             if algo.Program.get_position(trade_ctx, row['trade_env'], row['code']) == 0 and\
                     not algo.Program.order_exist(trade_ctx, row['trade_env'], row['code']):
                 # updated_codes.loc[index, 'trade_env'] = self.default_trade_env

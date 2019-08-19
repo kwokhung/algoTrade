@@ -92,7 +92,7 @@ class Program(object):
         algo.Helper.log_info('{} ({}): Trade for {}'.format(time_key[i], i, code), to_notify=True)
 
         if not algo.Trade.check_tradable(quote_ctx, trade_ctx, trade_env, code):
-            algo.Helper.log_info('{} ({}): Not Tradable'.format(time_key[i], i))
+            algo.Helper.log_info('{} ({}): Not Tradable'.format(time_key[i], i), to_notify=True)
             return
 
         if algo.Program.order_exist(trade_ctx, trade_env, code):
