@@ -28,7 +28,7 @@ class Helper(object):
         if priority is None:
             response = messaging.send(messaging.Message(
                 data={
-                    'landing_page': 'second',
+                    'landing_page': 'notification',
                     'time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                     'message': message
                 },
@@ -37,7 +37,7 @@ class Helper(object):
         else:
             response = messaging.send(messaging.Message(
                 data={
-                    'landing_page': 'second',
+                    'landing_page': 'notification',
                     'time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                     'message': message
                 },
@@ -45,7 +45,7 @@ class Helper(object):
             ))
             response = messaging.send(messaging.Message(
                 data={
-                    'landing_page': 'second',
+                    'landing_page': 'notification',
                     'time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                     'message': message
                 },
