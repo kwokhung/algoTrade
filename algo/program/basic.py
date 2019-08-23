@@ -338,6 +338,11 @@ class Program(object):
     def need_to_cut_loss(trade_ctx, trade_env, code, neg_to_liquidate, time_key, last_close, prev_close_price):
         qty, pl_ratio = algo.Program.get_current_status(trade_ctx, trade_env, code)
 
+        if qty != 0 and pl_ratio < 0:
+            algo.Helper.log_info('{}: Need to cut loss quick: {} < 0 ({})'.format(time_key, pl_ratio, code), to_notify=True, priority='high')
+
+            return True
+
         if qty > 0 and last_close < prev_close_price and pl_ratio < -(neg_to_liquidate * 0.5):
             algo.Helper.log_info('{}: Need to cut loss quick after drop below previous close: {} < -{} ({})'.format(time_key, pl_ratio, (neg_to_liquidate * 0.5), code), to_notify=True, priority='high')
 
