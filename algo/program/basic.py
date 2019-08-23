@@ -255,7 +255,7 @@ class Program(object):
             return True
 
         if 'HK.' in code:
-            liquidation_time = datetime.time(16, 0, 0)
+            liquidation_time = datetime.time(15, 0, 0)
         elif 'SH.' in code:
             liquidation_time = datetime.time(14, 45, 0)
         elif 'SZ.' in code:
@@ -280,7 +280,7 @@ class Program(object):
             return True
 
         if 'HK.' in code:
-            stop_trade_time = datetime.time(16, 0, 0)
+            stop_trade_time = datetime.time(15, 0, 0)
         elif 'SH.' in code:
             stop_trade_time = datetime.time(14, 15, 0)
         elif 'SZ.' in code:
@@ -361,6 +361,11 @@ class Program(object):
     @staticmethod
     def need_to_cut_profit(trade_ctx, trade_env, code, pos_to_liquidate, time_key):
         qty, pl_ratio = algo.Program.get_current_status(trade_ctx, trade_env, code)
+
+        if qty != 0 and pl_ratio > 0:
+            algo.Helper.log_info('{}: Need to cut profit quick: {} > 0 ({})'.format(time_key, pl_ratio, code), to_notify=True, priority='high')
+
+            return True
 
         highest_p_l, lowest_p_l = algo.Program.get_p_l(code)
 
