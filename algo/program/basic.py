@@ -157,18 +157,24 @@ class Program(object):
                 else:
                     action[i] = 0
             elif position[i - 1] != 0:
-                if (position[i - 1] > 0 and close[i] < prev_close_price and cumulated_p_l[i - 1] * 100 < -(neg_to_liquidate * 0.5)) or \
+                if (cumulated_p_l[i - 1] * 100 < 0) or\
+                        (position[i - 1] > 0 and close[i] < prev_close_price and cumulated_p_l[i - 1] * 100 < -(neg_to_liquidate * 0.5)) or\
                         (position[i - 1] < 0 and close[i] > prev_close_price and cumulated_p_l[i - 1] * 100 < -(neg_to_liquidate * 0.5)) or\
                         (cumulated_p_l[i - 1] * 100 < -neg_to_liquidate) or \
+                        (cumulated_p_l[i - 1] * 100 > 0) or \
                         (highest_p_l[i - 1] * 100 > (pos_to_liquidate * 0.5) and cumulated_p_l[i - 1] * 100 < (pos_to_liquidate * 0.5)) or\
                         (False and cumulated_p_l[i - 1] * 100 < (highest_p_l[i - 1] * 100 * 0.5)) or\
                         (cumulated_p_l[i - 1] * 100 > pos_to_liquidate):
+                    if cumulated_p_l[i - 1] * 100 < 0:
+                        algo.Helper.log_info('{}: Need to cut loss quick: {} < 0 ({})'.format(time_key[i], (cumulated_p_l[i - 1] * 100), code))
                     if position[i - 1] > 0 and close[i] < prev_close_price and cumulated_p_l[i - 1] * 100 < -(neg_to_liquidate * 0.5):
                         algo.Helper.log_info('{}: Need to cut loss quick after drop below previous close: {} < -{} ({})'.format(time_key[i], (cumulated_p_l[i - 1] * 100), (neg_to_liquidate * 0.5), code))
                     if position[i - 1] < 0 and close[i] > prev_close_price and cumulated_p_l[i - 1] * 100 < -(neg_to_liquidate * 0.5):
                         algo.Helper.log_info('{}: Need to cut loss quick after rise above previous close: {} < -{} ({})'.format(time_key[i], (cumulated_p_l[i - 1] * 100), (neg_to_liquidate * 0.5), code))
                     if cumulated_p_l[i - 1] * 100 < -neg_to_liquidate:
                         algo.Helper.log_info('{}: Need to cut loss: {} < -{} ({})'.format(time_key[i], (cumulated_p_l[i - 1] * 100), neg_to_liquidate, code))
+                    if cumulated_p_l[i - 1] * 100 > 0:
+                        algo.Helper.log_info('{}: Need to cut profit quick: {} > 0 ({})'.format(time_key[i], (cumulated_p_l[i - 1] * 100), code))
                     if highest_p_l[i - 1] * 100 > (pos_to_liquidate * 0.5) and cumulated_p_l[i - 1] * 100 < (pos_to_liquidate * 0.5):
                         algo.Helper.log_info('{}: Need to retain profit quick after drop from highest profit: {} < {} < {} < {} ({})'.format(time_key[i], (cumulated_p_l[i - 1] * 100), (pos_to_liquidate * 0.5), (pos_to_liquidate * 0.5), (highest_p_l[i - 1] * 100), code))
                     if False and cumulated_p_l[i - 1] * 100 < (highest_p_l[i - 1] * 100 * 0.5):
@@ -325,6 +331,7 @@ class Program(object):
         try:
             qty = int(positions['qty'])
             pl_ratio = float(positions['pl_ratio'])
+            # pl_ratio = float(positions['pl_ratio']) / 100
         except TypeError:
             qty = 0
             pl_ratio = 0.0
@@ -338,6 +345,9 @@ class Program(object):
     def need_to_cut_loss(trade_ctx, trade_env, code, neg_to_liquidate, time_key, last_close, prev_close_price):
         qty, pl_ratio = algo.Program.get_current_status(trade_ctx, trade_env, code)
 
+        '''
+        For quick action
+        '''
         if qty != 0 and pl_ratio < 0:
             algo.Helper.log_info('{}: Need to cut loss quick: {} < 0 ({})'.format(time_key, pl_ratio, code), to_notify=True, priority='high')
 
@@ -362,6 +372,9 @@ class Program(object):
     def need_to_cut_profit(trade_ctx, trade_env, code, pos_to_liquidate, time_key):
         qty, pl_ratio = algo.Program.get_current_status(trade_ctx, trade_env, code)
 
+        '''
+        For quick action
+        '''
         if qty != 0 and pl_ratio > 0:
             algo.Helper.log_info('{}: Need to cut profit quick: {} > 0 ({})'.format(time_key, pl_ratio, code), to_notify=True, priority='high')
 
@@ -551,6 +564,11 @@ class Program(object):
                 return False
             else:
                 return True
+        elif strategy == 'M':
+            if not algo.Program.dare_to_buy_m(i, time_key, close, prev_close_price, not_dare_to_buy, encourage_factor):
+                return False
+            else:
+                return True
         else:
             return False
 
@@ -712,6 +730,57 @@ class Program(object):
         return False
 
     @staticmethod
+    def dare_to_buy_m(i, time_key, close, prev_close_price, not_dare_to_buy, encourage_factor):
+        if close[i] > close[i - 1] or \
+                close[i - 1] > close[i - 2] or \
+                close[i - 2] >= close[i - 3]:
+            return False
+
+        turning_point = i - 3
+
+        while True:
+            if close[turning_point] == close[turning_point - 1]:
+                turning_point -= 1
+            else:
+                break
+
+        if close[turning_point] <= close[turning_point - 1] or \
+                close[turning_point - 1] < close[turning_point - 2] or \
+                close[turning_point - 2] < close[turning_point - 3]:
+            return False
+
+        algo.Helper.log_info('{} ({}): Buy Signal occur: @{}'.format(time_key[i], i, close[i]), to_notify=True, priority='high')
+
+        # return True
+
+        for running in range(i - 1, -1, -1):
+            change_rate = (close[i] / close[running]) - 1 if close[running] != 0 else 0
+            change_rate_percentage = change_rate * 100
+
+            if change_rate_percentage < -not_dare_to_buy:
+                algo.Helper.log_info('{} ({}): Drop too much, not dare to buy: @{} ({} < -{})'.format(time_key[i], i, close[i], change_rate_percentage, not_dare_to_buy), to_notify=True, priority='high')
+
+                return False
+
+        max_change_rate_percentage = 0
+
+        for running in range(i - 1, -1, -1):
+            change_rate = (close[i] / close[running]) - 1 if close[running] != 0 else 0
+            change_rate_percentage = change_rate * 100
+
+            if change_rate_percentage > not_dare_to_buy * encourage_factor:
+                algo.Helper.log_info('{} ({}): Encourage to buy: @{} ({} > {})'.format(time_key[i], i, close[i], change_rate_percentage, not_dare_to_buy * encourage_factor), to_notify=True, priority='high')
+
+                return True
+
+            if change_rate_percentage > max_change_rate_percentage:
+                max_change_rate_percentage = change_rate_percentage
+
+        algo.Helper.log_info('{} ({}): Rise not too much, not encourage to buy: @{} ({} <= {})'.format(time_key[i], i, close[i], max_change_rate_percentage, not_dare_to_buy * encourage_factor), to_notify=True, priority='high')
+
+        return False
+
+    @staticmethod
     def buy_signal_before_cross(i, close, macd, signal, sma_1, sma_2):
         if not (macd[i] > signal[i]):
             return False
@@ -797,6 +866,11 @@ class Program(object):
                 return True
         elif strategy == 'L':
             if not algo.Program.dare_to_sell_l(i, time_key, close, prev_close_price, not_dare_to_sell, encourage_factor):
+                return False
+            else:
+                return True
+        elif strategy == 'M':
+            if not algo.Program.dare_to_sell_m(i, time_key, close, prev_close_price, not_dare_to_sell, encourage_factor):
                 return False
             else:
                 return True
@@ -952,6 +1026,57 @@ class Program(object):
         return False
 
     @staticmethod
+    def dare_to_sell_m(i, time_key, close, prev_close_price, not_dare_to_sell, encourage_factor):
+        if close[i] < close[i - 1] or \
+                close[i - 1] < close[i - 2] or \
+                close[i - 2] <= close[i - 3]:
+            return False
+
+        turning_point = i - 3
+
+        while True:
+            if close[turning_point] == close[turning_point - 1]:
+                turning_point -= 1
+            else:
+                break
+
+        if close[turning_point] >= close[turning_point - 1] or \
+                close[turning_point - 1] > close[turning_point - 2] or \
+                close[turning_point - 2] > close[turning_point - 3]:
+            return False
+
+        algo.Helper.log_info('{} ({}): Sell Signal occur: @{}'.format(time_key[i], i, close[i]), to_notify=True, priority='high')
+
+        # return True
+
+        for running in range(i - 1, -1, -1):
+            change_rate = (close[i] / close[running]) - 1 if close[running] != 0 else 0
+            change_rate_percentage = change_rate * 100
+
+            if change_rate_percentage > not_dare_to_sell:
+                algo.Helper.log_info('{} ({}): Rise too much, not dare to sell: @{} ({} > {})'.format(time_key[i], i, close[i], change_rate_percentage, not_dare_to_sell), to_notify=True, priority='high')
+
+                return False
+
+        min_change_rate_percentage = 0
+
+        for running in range(i - 1, -1, -1):
+            change_rate = (close[i] / close[running]) - 1 if close[running] != 0 else 0
+            change_rate_percentage = change_rate * 100
+
+            if change_rate_percentage < -not_dare_to_sell * encourage_factor:
+                algo.Helper.log_info('{} ({}): Encourage to sell: @{} ({} < -{})'.format(time_key[i], i, close[i], change_rate_percentage, not_dare_to_sell * encourage_factor), to_notify=True, priority='high')
+
+                return True
+
+            if change_rate_percentage < min_change_rate_percentage:
+                min_change_rate_percentage = change_rate_percentage
+
+        algo.Helper.log_info('{} ({}): Drop not too much, not encourage to sell: @{} ({} >= -{})'.format(time_key[i], i, close[i], min_change_rate_percentage, not_dare_to_sell * encourage_factor), to_notify=True, priority='high')
+
+        return False
+
+    @staticmethod
     def sell_signal_before_cross(i, close, macd, signal, sma_1, sma_2, short_sell_enable):
         if not (macd[i] < signal[i]):
             return False
@@ -1051,7 +1176,7 @@ class Program(object):
                 algo.Trade.clear_order(trade_ctx, trade_env, code)
                 algo.Trade.buy(trade_ctx, trade_env, code, position, last_price)
             else:
-                algo.Helper.log_info('{} ({}): Position is zero'.format(time_key, i), to_notify=True, priority='high')
+                algo.Helper.log_info('{} ({}): Position is zero'.format(time_key, i))
         except Exception as error:
             algo.Helper.log_info('force_to_liquidate failed ({})'.format(error))
 
