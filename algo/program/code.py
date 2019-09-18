@@ -396,6 +396,40 @@ class Code(object):
 
         self.get_codes()
 
+    def update_hk_options(self):
+        a = algo.Quote.get_option_chain(self.quote_ctx, 'HK.00700', '2019-09-01', '2019-09-30', ft.OptionType.ALL, ft.OptionCondType.ALL)
+        print(a)
+        a[1].to_csv('C:/temp/{}_options.csv'.format('US.BABA'), float_format='%f')
+        d = algo.Quote.get_market_snapshot(self.quote_ctx, '', a[1]['code'].tolist())
+        print(d)
+        options_snapshot = d[1]
+        options_snapshot.to_csv('C:/temp/{}_options_snapshot.csv'.format('US.BABA'), float_format='%f')
+
+        b = algo.Quote.get_kline(self.quote_ctx, 'US.BABA190628C165000', '2019-06-21', '2019-06-21')
+        print(b)
+        # b[1].to_csv('C:/temp/{}_klines.csv'.format('US.BABA'), float_format='%f')
+
+        options_snapshot = pd.DataFrame()
+        for index, row in a[1].iterrows():
+            try:
+                print(row['code'])
+                if False and row['strike_time'] != '2019-06-21':
+                    continue
+
+                c = algo.Quote.get_market_snapshot(self.quote_ctx, row['code'])
+                print(c)
+
+                if len(options_snapshot) == 0:
+                    options_snapshot = c[1]
+                else:
+                    options_snapshot = options_snapshot.append(c[1])
+
+                time.sleep(3)
+            except Exception as error:
+                algo.Helper.log_info('update_us_codes failed ({})'.format(error))
+
+        options_snapshot.to_csv('C:/temp/{}_options_snapshot.csv'.format('US.BABA'), float_format='%f')
+
     def update_us_codes(self):
         a = algo.Quote.get_option_chain(self.quote_ctx, 'US.BABA', '2019-06-28', '2019-06-28', ft.OptionType.ALL, ft.OptionCondType.ALL)
         print(a)
@@ -622,7 +656,7 @@ class Code(object):
             code_index += 1
 
     def test_year(self):
-        # algo.Code.update_us_codes(self)
+        # algo.Code.update_hk_options(self)
 
         # start = '2019-06-01'
         start = 'today'
